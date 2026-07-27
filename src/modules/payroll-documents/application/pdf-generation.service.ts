@@ -14,12 +14,18 @@ function hashBuffer(buffer: Buffer) {
 
 export class PDFGenerationService {
   async renderPayslipPdf(data: PayslipRenderData): Promise<{ buffer: Buffer; hash: string }> {
-    const buffer = Buffer.from(await renderToBuffer(React.createElement(PayslipPdfDocument, { data })));
+    const buffer = Buffer.from(
+      await renderToBuffer(React.createElement(PayslipPdfDocument, { data }) as Parameters<typeof renderToBuffer>[0]),
+    );
     return { buffer, hash: hashBuffer(buffer) };
   }
 
   async renderSalaryCertificatePdf(data: SalaryCertificateRenderData): Promise<{ buffer: Buffer; hash: string }> {
-    const buffer = Buffer.from(await renderToBuffer(React.createElement(SalaryCertificatePdfDocument, { data })));
+    const buffer = Buffer.from(
+      await renderToBuffer(
+        React.createElement(SalaryCertificatePdfDocument, { data }) as Parameters<typeof renderToBuffer>[0],
+      ),
+    );
     return { buffer, hash: hashBuffer(buffer) };
   }
 

@@ -146,7 +146,8 @@ export const earningsCalculateSchema = z.object({
   periodEnd: z.coerce.date(),
   basic: z.number().min(0),
   gross: z.number().min(0),
-  overtimeHours: z.number().min(0).optional(),
+  workingDays: z.number().min(0).default(26),
+  overtimeHours: z.number().min(0).default(0),
 });
 
 export const earningsApprovalSchema = z.object({

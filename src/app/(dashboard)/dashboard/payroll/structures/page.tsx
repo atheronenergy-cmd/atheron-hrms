@@ -21,7 +21,7 @@ export default async function SalaryStructuresPage() {
         <Button variant="outline" asChild><Link href={SALARY_ROUTES.dashboard}>Back</Link></Button>
       </div>
       <Card>
-        <CardHeader><CardTitle className="text-base">Structures ({list.totalItems})</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Structures ({list.meta.totalItems})</CardTitle></CardHeader>
         <CardContent><SalaryStructureTable items={list.items} /></CardContent>
       </Card>
     </div>

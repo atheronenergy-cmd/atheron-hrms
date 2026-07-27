@@ -14,7 +14,7 @@ export class SalaryFormulaService extends BaseRepository {
     const where = {
       companyId,
       deletedAt: null,
-      ...(query.search ? { OR: [{ name: { contains: query.search, mode: "insensitive" } }, { code: { contains: query.search, mode: "insensitive" } }] } : {}),
+      ...(query.search ? { OR: [{ name: { contains: query.search, mode: "insensitive" as const } }, { code: { contains: query.search, mode: "insensitive" as const } }] } : {}),
     };
 
     const [items, totalItems] = await Promise.all([

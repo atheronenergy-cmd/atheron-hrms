@@ -37,7 +37,7 @@ export class PayrollAttendanceIntegrationService extends BaseRepository {
       if (r.status === "absent") absentDays += 1;
       else if (r.status === "half_day") halfDays += 0.5;
       else if (["present", "late", "overtime", "work_from_home", "outdoor_duty", "on_leave"].includes(r.status)) {
-        presentDays += r.status === "half_day" ? 0.5 : 1;
+        presentDays += 1;
       }
       if (r.status === "late") lateCount += 1;
       overtimeHours += (r.overtimeMinutes ?? 0) / 60;

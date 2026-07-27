@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const parsed = employeeSalarySchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 422);
     const row = await getSalaryServices(auth.companyId).employeeSalary.assign(parsed.data, auth.userId);
-    return apiSuccess({ id: row.id, approvalStatus: row.approvalStatus }, 201);
+    return apiSuccess({ id: row.id, approvalStatus: row.approvalStatus }, "Salary assigned", 201);
   } catch (error) {
     return handleApiError(error);
   }

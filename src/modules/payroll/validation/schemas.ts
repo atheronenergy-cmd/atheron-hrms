@@ -195,7 +195,7 @@ export type PayrollGenerateInput = z.infer<typeof payrollGenerateSchema>;
 export type PayrollCalculateInput = z.infer<typeof payrollCalculateSchema>;
 export type PayrollApproveInput = z.infer<typeof payrollApproveSchema>;
 export type PayrollLockInput = z.infer<typeof payrollLockSchema>;
-export type PayrollQueryInput = z.infer<typeof payrollQuerySchema>;
+export type PayrollQueryInput = z.input<typeof payrollQuerySchema>;
 
 export type SalaryStructureInput = z.infer<typeof salaryStructureSchema>;
 export type SalaryComponentInput = z.infer<typeof salaryComponentSchema>;
@@ -204,5 +204,7 @@ export type SalaryTemplateInput = z.infer<typeof salaryTemplateSchema>;
 export type EmployeeSalaryInput = z.infer<typeof employeeSalarySchema>;
 export type SalaryRevisionInput = z.infer<typeof salaryRevisionSchema>;
 export type PayGradeInput = z.infer<typeof payGradeSchema>;
-export type SalaryQueryInput = z.infer<typeof salaryQuerySchema>;
+export type SalaryQueryInput = z.input<typeof salaryQuerySchema>;
+export type SalaryComponentQueryInput = z.input<typeof salaryComponentQuerySchema>;
+export type EmployeeSalaryQueryInput = z.input<typeof employeeSalaryQuerySchema>;
 export type FormulaPreviewInput = z.infer<typeof formulaPreviewSchema>;

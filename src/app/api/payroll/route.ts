@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const parsed = payrollGenerateSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 422);
     const result = await getPayrollServices(auth.companyId).payroll.generate(parsed.data, auth.userId);
-    return apiSuccess(result, parsed.data.previewOnly ? 200 : 201);
+    return apiSuccess(result, "Success", parsed.data.previewOnly ? 200 : 201);
   } catch (error) {
     return handleApiError(error);
   }

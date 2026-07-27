@@ -2,7 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 
 import { AUTH_CONFIG, AUTH_ROUTES } from "@/shared/constants/auth";
 
-/** Edge-compatible Auth.js config used by middleware (no Node.js / Prisma imports). */
+/** Edge-compatible Auth.js config used by proxy (no Node.js / Prisma imports). */
 export const authConfig = {
   pages: {
     signIn: AUTH_ROUTES.login,

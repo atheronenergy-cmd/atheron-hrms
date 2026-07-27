@@ -20,7 +20,7 @@ export default async function SalaryTemplatesPage() {
         <Button variant="outline" asChild><Link href={SALARY_ROUTES.dashboard}>Back</Link></Button>
       </div>
       <Card>
-        <CardHeader><CardTitle className="text-base">Templates ({list.totalItems})</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Templates ({list.meta.totalItems})</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           {list.items.length === 0 ? <p className="text-sm text-muted-foreground">No templates configured.</p> : list.items.map((t) => (
             <div key={t.id} className="flex justify-between border-b py-2 text-sm">

@@ -11,7 +11,7 @@ export class EarningsAuditService {
         entityId: entityId ?? undefined,
         action,
         actorUserId,
-        metadata: metadata ?? {},
+        metadata: (metadata ?? {}) as object,
       },
     });
   }

@@ -36,18 +36,18 @@ export const PAYROLL_GOVERNANCE_STATUSES = [
   "archived",
 ] as const;
 
-export const RETRO_PAYROLL_TYPES: RetroPayrollType[] = [
+export const RETRO_PAYROLL_TYPES = [
   "late_promotion",
   "late_increment",
   "attendance_correction",
   "leave_correction",
   "statutory_revision",
   "manual",
-];
+] as const satisfies readonly RetroPayrollType[];
 
-export const ARREAR_TYPES: PayrollArrearType[] = ["salary", "allowance", "bonus", "overtime", "manual"];
+export const ARREAR_TYPES = ["salary", "allowance", "bonus", "overtime", "manual"] as const satisfies readonly PayrollArrearType[];
 
-export const REOPEN_ACTIONS: PayrollReopenAction[] = ["unlock", "modify", "recalculate", "relock"];
+export const REOPEN_ACTIONS = ["unlock", "modify", "recalculate", "relock"] as const satisfies readonly PayrollReopenAction[];
 
 export type GovernanceReportType =
   | "approval_history"
@@ -58,7 +58,7 @@ export type GovernanceReportType =
   | "financial_year_summary"
   | "compliance_snapshot";
 
-export const GOVERNANCE_REPORT_TYPES: GovernanceReportType[] = [
+export const GOVERNANCE_REPORT_TYPES = [
   "approval_history",
   "locked_payroll",
   "version_history",
@@ -66,7 +66,7 @@ export const GOVERNANCE_REPORT_TYPES: GovernanceReportType[] = [
   "arrear_report",
   "financial_year_summary",
   "compliance_snapshot",
-];
+] as const satisfies readonly GovernanceReportType[];
 
 export type PayrollSnapshotPayload = {
   payroll: Record<string, unknown>;

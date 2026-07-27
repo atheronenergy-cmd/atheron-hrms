@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const parsed = salaryStructureSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 422);
     const row = await getSalaryServices(auth.companyId).structure.create(parsed.data, auth.userId);
-    return apiSuccess({ id: row.id, code: row.code }, 201);
+    return apiSuccess({ id: row.id, code: row.code }, "Salary structure created", 201);
   } catch (error) {
     return handleApiError(error);
   }

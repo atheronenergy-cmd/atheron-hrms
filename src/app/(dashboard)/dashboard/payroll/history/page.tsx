@@ -20,7 +20,7 @@ export default async function PayrollHistoryPage() {
         <Button variant="outline" asChild><Link href={PAYROLL_ROUTES.dashboard}>Back</Link></Button>
       </div>
       <Card>
-        <CardHeader><CardTitle className="text-base">Payroll Runs ({list.totalItems})</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Payroll Runs ({list.meta.totalItems})</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Number</th><th className="py-2">Status</th><th className="py-2">Employees</th><th className="py-2">Gross</th><th className="py-2">Net</th><th className="py-2">Errors</th></tr></thead>

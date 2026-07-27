@@ -20,6 +20,8 @@ export const PERMISSION_ACTIONS = [
   "download",
   "override",
   "revoke",
+  "close",
+  "view",
 ] as const;
 
 export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];

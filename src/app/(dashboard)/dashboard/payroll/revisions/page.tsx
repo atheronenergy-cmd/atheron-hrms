@@ -21,7 +21,7 @@ export default async function SalaryRevisionsPage() {
         <Button variant="outline" asChild><Link href={SALARY_ROUTES.dashboard}>Back</Link></Button>
       </div>
       <Card>
-        <CardHeader><CardTitle className="text-base">Revisions ({list.totalItems})</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Revisions ({list.meta.totalItems})</CardTitle></CardHeader>
         <CardContent><SalaryRevisionTable items={list.items} /></CardContent>
       </Card>
     </div>

@@ -107,6 +107,14 @@ export const DEFAULT_JOURNAL_ACCOUNTS = {
   roundOff: { code: "ROUND", name: "Round Off" },
 } as const;
 
+export type JournalLineInput = {
+  accountCode: string;
+  accountName: string;
+  debitAmount: number;
+  creditAmount: number;
+  costCenterCode?: string;
+};
+
 export type ExecutiveDashboardData = {
   kpis: PayrollAnalyticsMetrics;
   charts: {

@@ -87,57 +87,57 @@ export async function POST(request: Request) {
     if (action === "create_loan_type") {
       const parsed = loanTypeSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.loan.createLoanType(parsed.data, auth.id));
+      return apiSuccess(await svc.loan.createLoanType(parsed.data, auth.userId));
     }
 
     if (action === "create_policy") {
       const parsed = loanPolicySchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.module.createPolicy(parsed.data, auth.id));
+      return apiSuccess(await svc.module.createPolicy(parsed.data, auth.userId));
     }
 
     if (action === "create_loan") {
       const parsed = employeeLoanSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.loan.create(parsed.data, auth.id));
+      return apiSuccess(await svc.loan.create(parsed.data, auth.userId));
     }
 
     if (action === "create_advance") {
       const parsed = salaryAdvanceSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.advance.create(parsed.data, auth.id));
+      return apiSuccess(await svc.advance.create(parsed.data, auth.userId));
     }
 
     if (action === "approve_loan") {
       const parsed = loanApprovalActionSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.approval.processAction(parsed.data, auth.id));
+      return apiSuccess(await svc.approval.processAction(parsed.data, auth.userId));
     }
 
     if (action === "disburse_loan") {
       const parsed = loanDisburseSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.loan.disburse(parsed.data.loanId, parsed.data.disbursementDate, auth.id));
+      return apiSuccess(await svc.loan.disburse(parsed.data.loanId, parsed.data.disbursementDate, auth.userId));
     }
 
     if (action === "foreclose") {
       const parsed = foreclosureSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.loan.processForeclosure(parsed.data, auth.id));
+      return apiSuccess(await svc.loan.processForeclosure(parsed.data, auth.userId));
     }
 
     if (action === "adjust_recovery") {
       const parsed = recoveryAdjustmentSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.recovery.createAdjustment(parsed.data, auth.id));
+      return apiSuccess(await svc.recovery.createAdjustment(parsed.data, auth.userId));
     }
 
     if (action === "approve_advance") {
-      return apiSuccess(await svc.advance.approve(body.advanceId, auth.id));
+      return apiSuccess(await svc.advance.approve(body.advanceId, auth.userId));
     }
 
     if (action === "submit_advance") {
-      return apiSuccess(await svc.advance.submit(body.advanceId, auth.id));
+      return apiSuccess(await svc.advance.submit(body.advanceId, auth.userId));
     }
 
     return apiError("Unknown action", 400);

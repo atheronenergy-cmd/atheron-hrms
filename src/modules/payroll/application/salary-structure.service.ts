@@ -139,7 +139,7 @@ export class SalaryStructureService extends BaseRepository {
     }
     for (const s of DEFAULT_SALARY_STRUCTURES) {
       const exists = await prisma.salaryStructure.findFirst({ where: { companyId, code: s.code } });
-      if (!exists) await this.create({ ...s, payFrequency: "monthly" }, actorUserId);
+      if (!exists) await this.create({ ...s, payFrequency: "monthly", isDefault: false }, actorUserId);
     }
   }
 

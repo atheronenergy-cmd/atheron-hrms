@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     if (!parsed.success) return apiError("Validation failed", 422);
 
     const row = await getLeaveServices(auth.companyId).leave.apply(parsed.data, auth.userId);
-    return apiSuccess({ id: row.id, status: row.status }, 201);
+    return apiSuccess({ id: row.id, status: row.status }, "Leave application submitted", 201);
   } catch (error) {
     return handleApiError(error);
   }

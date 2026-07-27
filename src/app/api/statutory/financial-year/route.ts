@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const parsed = financialYearSchema.safeParse(body);
     if (!parsed.success) return apiError("Validation failed", 422);
     const fy = await getStatutoryServices(auth.companyId).config.createFinancialYear(parsed.data, auth.userId);
-    return apiSuccess(fy, 201);
+    return apiSuccess(fy, "Financial year created", 201);
   } catch (error) {
     return handleApiError(error);
   }

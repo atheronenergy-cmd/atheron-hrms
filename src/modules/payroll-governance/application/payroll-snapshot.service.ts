@@ -43,7 +43,7 @@ export class PayrollSnapshotService extends BaseRepository {
             where: {
               companyId,
               employeeId: { in: employeeIds },
-              attendanceDate: { gte: period.startDate, lte: period.endDate },
+              date: { gte: period.startDate, lte: period.endDate },
             },
           }),
           prisma.leave.count({

@@ -34,7 +34,7 @@ export async function GET(request: Request) {
         refresh: searchParams.get("refresh") === "true",
       });
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.analytics.getExecutiveDashboard(parsed.data, auth.id));
+      return apiSuccess(await svc.analytics.getExecutiveDashboard(parsed.data, auth.userId));
     }
 
     const reportType = searchParams.get("reportType");
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
         filters: {},
       });
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await svc.report.buildReport(parsed.data, auth.id));
+      return apiSuccess(await svc.report.buildReport(parsed.data, auth.userId));
     }
 
     const metrics = await svc.analytics.computeMetrics({});
@@ -64,49 +64,49 @@ export async function POST(request: Request) {
       const auth = await requireApiAuth(PERMISSIONS.PAYROLL_REPORTING.EXPORT);
       const parsed = payrollReportSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollReportingServices(auth.companyId).report.buildReport(parsed.data, auth.id));
+      return apiSuccess(await getPayrollReportingServices(auth.companyId).report.buildReport(parsed.data, auth.userId));
     }
 
     if (action === "salary_register") {
       const auth = await requireApiAuth(PERMISSIONS.PAYROLL_REPORTING.EXPORT);
       const parsed = salaryRegisterSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollReportingServices(auth.companyId).salaryRegister.generate(parsed.data, auth.id));
+      return apiSuccess(await getPayrollReportingServices(auth.companyId).salaryRegister.generate(parsed.data, auth.userId));
     }
 
     if (action === "generate_bank_file") {
       const auth = await requireApiAuth(PERMISSIONS.BANK_TRANSFER.GENERATE);
       const parsed = bankBatchSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollReportingServices(auth.companyId).bankTransfer.generateBatch(parsed.data, auth.id));
+      return apiSuccess(await getPayrollReportingServices(auth.companyId).bankTransfer.generateBatch(parsed.data, auth.userId));
     }
 
     if (action === "approve_bank_batch") {
       const auth = await requireApiAuth(PERMISSIONS.BANK_TRANSFER.APPROVE);
       const parsed = bankBatchApproveSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollReportingServices(auth.companyId).bankTransfer.approve(parsed.data.batchId, auth.id));
+      return apiSuccess(await getPayrollReportingServices(auth.companyId).bankTransfer.approve(parsed.data.batchId, auth.userId));
     }
 
     if (action === "update_transfer_status") {
       const auth = await requireApiAuth(PERMISSIONS.BANK_TRANSFER.GENERATE);
       const parsed = bankTransferStatusSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollReportingServices(auth.companyId).bankTransfer.updateRecordStatus(parsed.data, auth.id));
+      return apiSuccess(await getPayrollReportingServices(auth.companyId).bankTransfer.updateRecordStatus(parsed.data, auth.userId));
     }
 
     if (action === "accounting_export") {
       const auth = await requireApiAuth(PERMISSIONS.ACCOUNTING.EXPORT);
       const parsed = accountingExportSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollReportingServices(auth.companyId).accounting.export(parsed.data, auth.id));
+      return apiSuccess(await getPayrollReportingServices(auth.companyId).accounting.export(parsed.data, auth.userId));
     }
 
     if (action === "create_cost_center") {
       const auth = await requireApiAuth(PERMISSIONS.COST_CENTER.MANAGE);
       const parsed = costCenterSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollReportingServices(auth.companyId).costCenter.create(parsed.data, auth.id));
+      return apiSuccess(await getPayrollReportingServices(auth.companyId).costCenter.create(parsed.data, auth.userId));
     }
 
     return apiError("Unknown action", 400);

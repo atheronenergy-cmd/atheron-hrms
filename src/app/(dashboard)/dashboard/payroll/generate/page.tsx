@@ -20,7 +20,7 @@ export default async function PayrollGeneratePage() {
         <Button variant="outline" asChild><Link href={PAYROLL_ROUTES.dashboard}>Back</Link></Button>
       </div>
       <Card>
-        <CardHeader><CardTitle className="text-base">Available Periods ({periods.totalItems})</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Available Periods ({periods.meta.totalItems})</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           {periods.items.map((p) => (
             <div key={p.id} className="flex justify-between border-b py-2 text-sm">

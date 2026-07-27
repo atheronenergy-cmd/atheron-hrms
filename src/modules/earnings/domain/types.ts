@@ -83,7 +83,7 @@ export type EarningsReportType =
 
 export type RuleLike = {
   calculationMode: string;
-  amount: unknown;
+  amount?: unknown;
   percentageValue?: unknown;
   percentageOf?: string | null;
   formulaExpression?: string | null;

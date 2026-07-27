@@ -32,7 +32,7 @@ export class StatutoryService extends BaseRepository {
         esiEmployeeRateOverride: input.esiEmployeeRateOverride,
         esiEmployerRateOverride: input.esiEmployerRateOverride,
         ptExempt: input.ptExempt ?? false,
-        exemptions: input.exemptions ?? [],
+        exemptions: (input.exemptions ?? []) as object,
         createdBy: userId,
       },
       update: {
@@ -48,7 +48,7 @@ export class StatutoryService extends BaseRepository {
         esiEmployeeRateOverride: input.esiEmployeeRateOverride,
         esiEmployerRateOverride: input.esiEmployerRateOverride,
         ptExempt: input.ptExempt,
-        exemptions: input.exemptions,
+        exemptions: input.exemptions ? (input.exemptions as object) : undefined,
         updatedBy: userId,
       },
     });

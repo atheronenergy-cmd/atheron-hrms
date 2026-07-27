@@ -10,7 +10,7 @@ export class StatutoryAuditService extends BaseRepository {
         entityId: entityId ?? undefined,
         action,
         actorUserId,
-        metadata: metadata ?? {},
+        metadata: (metadata ?? {}) as object,
       },
     });
   }

@@ -34,13 +34,16 @@ export class LoanRecoveryModuleService extends BaseRepository {
     effectiveTo?: string;
   }, actorUserId?: string) {
     const companyId = this.requireCompanyId();
+    const { interestRules, eligibilityRules, ...policyInput } = input;
     return prisma.loanPolicy.create({
       data: {
         companyId,
-        ...input,
+        ...policyInput,
         loanTypeId: input.loanTypeId ?? null,
         effectiveFrom: new Date(input.effectiveFrom),
         effectiveTo: input.effectiveTo ? new Date(input.effectiveTo) : null,
+        interestRules: interestRules as object | undefined,
+        eligibilityRules: eligibilityRules as object | undefined,
         createdBy: actorUserId,
         updatedBy: actorUserId,
       },

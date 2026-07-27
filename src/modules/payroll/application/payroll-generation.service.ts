@@ -6,7 +6,7 @@ import { persistStatutoryResults } from "@/modules/payroll/application/payroll-s
 import { persistEarningsResults } from "@/modules/payroll/application/payroll-earnings-integration.service";
 import { persistRecoveryResults } from "@/modules/payroll/application/payroll-loan-recovery-integration.service";
 import { payrollValidationService } from "@/modules/payroll/application/payroll-validation.service";
-import type { PayrollPreviewResult } from "@/modules/payroll/domain/types";
+import type { PayrollCalculationResult } from "@/modules/payroll/domain/types";
 import type { PayrollGenerateInput } from "@/modules/payroll/validation/schemas";
 import { BusinessRuleError } from "@/shared/errors";
 
@@ -15,7 +15,7 @@ function dateOnly(d: Date) {
 }
 
 export class PayrollPreviewService extends BaseRepository {
-  async preview(input: PayrollGenerateInput): Promise<{ previews: PayrollPreviewResult[]; warnings: string[] }> {
+  async preview(input: PayrollGenerateInput): Promise<{ previews: PayrollCalculationResult[]; warnings: string[] }> {
     const companyId = this.requireCompanyId();
     const employeeIds = await this.resolveEmployeeIds(input);
     await payrollValidationService.validateGeneration(companyId, input.payrollPeriodId, employeeIds);
@@ -24,7 +24,7 @@ export class PayrollPreviewService extends BaseRepository {
     if (!period) throw new BusinessRuleError("Payroll period not found");
 
     const calc = createPayrollCalculationService(companyId);
-    const previews: PayrollPreviewResult[] = [];
+    const previews: PayrollCalculationResult[] = [];
     const allWarnings: string[] = [];
 
     for (const employeeId of employeeIds) {
@@ -98,7 +98,7 @@ export class PayrollGenerationService extends BaseRepository {
 
   async calculateAndPersist(
     payrollId: string,
-    previews: Awaited<ReturnType<PayrollPreviewService["preview"]>>["previews"],
+    previews: PayrollCalculationResult[],
     actorUserId: string,
     periodStart: Date,
     periodEnd: Date,

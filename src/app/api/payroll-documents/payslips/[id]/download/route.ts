@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const parsed = payslipDownloadSchema.safeParse({ payslipId: id, password: searchParams.get("password") ?? undefined });
     if (!parsed.success) return new Response("Validation failed", { status: 422 });
 
-    const file = await getPayrollDocumentServices(auth.companyId).payslip.download(parsed.data.payslipId, auth.id, parsed.data.password);
+    const file = await getPayrollDocumentServices(auth.companyId).payslip.download(parsed.data.payslipId, auth.userId, parsed.data.password);
     return new Response(new Uint8Array(file.buffer), {
       headers: {
         "Content-Type": file.mimeType,

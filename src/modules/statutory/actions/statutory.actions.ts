@@ -26,7 +26,7 @@ export async function createFinancialYearAction(formData: FormData) {
     isCurrent: formData.get("isCurrent") === "true",
   });
   if (!parsed.success) return { ok: false, error: "Validation failed" };
-  await getStatutoryServices(companyId).config.createFinancialYear(parsed.data, auth.userId);
+  await getStatutoryServices(companyId).config.createFinancialYear(parsed.data, auth.id);
   revalidatePath(STATUTORY_ROUTES.financialYear);
   return { ok: true };
 }
@@ -43,7 +43,7 @@ export async function savePFConfigAction(formData: FormData) {
     vpfAllowed: formData.get("vpfAllowed") === "true",
   });
   if (!parsed.success) return { ok: false, error: "Validation failed" };
-  await getStatutoryServices(companyId).config.upsertPFConfig(parsed.data, auth.userId);
+  await getStatutoryServices(companyId).config.upsertPFConfig(parsed.data, auth.id);
   revalidatePath(STATUTORY_ROUTES.pf);
   return { ok: true };
 }
@@ -57,7 +57,7 @@ export async function saveESIConfigAction(formData: FormData) {
     eligibilityCeiling: Number(formData.get("eligibilityCeiling")),
   });
   if (!parsed.success) return { ok: false, error: "Validation failed" };
-  await getStatutoryServices(companyId).config.upsertESIConfig(parsed.data, auth.userId);
+  await getStatutoryServices(companyId).config.upsertESIConfig(parsed.data, auth.id);
   revalidatePath(STATUTORY_ROUTES.esi);
   return { ok: true };
 }
@@ -73,7 +73,7 @@ export async function savePTConfigAction(formData: FormData) {
     maxAmount: Number(formData.get("maxAmount") ?? 0),
   });
   if (!parsed.success) return { ok: false, error: "Validation failed" };
-  await getStatutoryServices(companyId).config.upsertPTConfig(parsed.data, auth.userId);
+  await getStatutoryServices(companyId).config.upsertPTConfig(parsed.data, auth.id);
   revalidatePath(STATUTORY_ROUTES.pt);
   return { ok: true };
 }
@@ -91,7 +91,7 @@ export async function saveIncomeTaxConfigAction(formData: FormData) {
     cessRate: Number(formData.get("cessRate")),
   });
   if (!parsed.success) return { ok: false, error: "Validation failed" };
-  await getStatutoryServices(companyId).config.upsertIncomeTaxConfig(parsed.data, auth.userId);
+  await getStatutoryServices(companyId).config.upsertIncomeTaxConfig(parsed.data, auth.id);
   revalidatePath(STATUTORY_ROUTES.incomeTax);
   return { ok: true };
 }
@@ -108,7 +108,7 @@ export async function saveInvestmentDeclarationAction(formData: FormData) {
     educationLoan: Number(formData.get("educationLoan") ?? 0),
   });
   if (!parsed.success) return { ok: false, error: "Validation failed" };
-  await getStatutoryServices(companyId).statutory.upsertInvestmentDeclaration(parsed.data, auth.userId);
+  await getStatutoryServices(companyId).statutory.upsertInvestmentDeclaration(parsed.data, auth.id);
   revalidatePath(STATUTORY_ROUTES.investmentDeclarations);
   return { ok: true };
 }
@@ -125,6 +125,6 @@ export async function saveEmployeeStatutoryProfileAction(formData: FormData) {
     vpfPercentage: formData.get("vpfPercentage") ? Number(formData.get("vpfPercentage")) : undefined,
   });
   if (!parsed.success) return { ok: false, error: "Validation failed" };
-  await getStatutoryServices(companyId).statutory.upsertEmployeeProfile(parsed.data, auth.userId);
+  await getStatutoryServices(companyId).statutory.upsertEmployeeProfile(parsed.data, auth.id);
   return { ok: true };
 }

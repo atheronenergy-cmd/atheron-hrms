@@ -59,35 +59,35 @@ export async function POST(request: Request) {
       const auth = await requireApiAuth(PERMISSIONS.PAYSLIP.GENERATE);
       const parsed = payslipGenerateSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollDocumentServices(auth.companyId).payslip.generate(parsed.data, auth.id));
+      return apiSuccess(await getPayrollDocumentServices(auth.companyId).payslip.generate(parsed.data, auth.userId));
     }
 
     if (action === "generate_bulk") {
       const auth = await requireApiAuth(PERMISSIONS.PAYSLIP.GENERATE);
       const parsed = payslipBulkGenerateSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollDocumentServices(auth.companyId).payslip.generateBulk(parsed.data, auth.id));
+      return apiSuccess(await getPayrollDocumentServices(auth.companyId).payslip.generateBulk(parsed.data, auth.userId));
     }
 
     if (action === "export_payroll") {
       const auth = await requireApiAuth(PERMISSIONS.PAYROLL_EXPORT.GENERATE);
       const parsed = payrollExportSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollDocumentServices(auth.companyId).export.export(parsed.data, auth.id));
+      return apiSuccess(await getPayrollDocumentServices(auth.companyId).export.export(parsed.data, auth.userId));
     }
 
     if (action === "generate_certificate") {
       const auth = await requireApiAuth(PERMISSIONS.SALARY_CERTIFICATE.GENERATE);
       const parsed = salaryCertificateSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollDocumentServices(auth.companyId).certificate.generate(parsed.data, auth.id));
+      return apiSuccess(await getPayrollDocumentServices(auth.companyId).certificate.generate(parsed.data, auth.userId));
     }
 
     if (action === "send_email") {
       const auth = await requireApiAuth(PERMISSIONS.PAYSLIP.EMAIL);
       const parsed = emailDistributionSchema.safeParse(body);
       if (!parsed.success) return apiError("Validation failed", 422);
-      return apiSuccess(await getPayrollDocumentServices(auth.companyId).email.queueDistribution(parsed.data, auth.id));
+      return apiSuccess(await getPayrollDocumentServices(auth.companyId).email.queueDistribution(parsed.data, auth.userId));
     }
 
     return apiError("Unknown action", 400);

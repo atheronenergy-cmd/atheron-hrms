@@ -86,13 +86,26 @@ export class PayrollEmailService extends BaseRepository {
         },
       });
     }
+    if (!row.payslip) {
+      return prisma.documentDistribution.update({
+        where: { id: row.id },
+        data: {
+          status: "failed",
+          failedAt: new Date(),
+          retryCount: { increment: 1 },
+          errorMessage: "Payslip record is missing",
+        },
+      });
+    }
+
+    const payslip = row.payslip;
 
     try {
       const attachments = [];
-      if (row.payslip.pdfFileId) {
-        const file = await fileStorageService.getDownloadBuffer(row.payslip.pdfFileId, companyId);
+      if (payslip.pdfFileId) {
+        const file = await fileStorageService.getDownloadBuffer(payslip.pdfFileId, companyId);
         attachments.push({
-          filename: file.originalName || `${row.payslip.payslipNumber}.pdf`,
+          filename: file.originalName || `${payslip.payslipNumber}.pdf`,
           content: file.buffer,
           contentType: file.mimeType,
         });
@@ -100,11 +113,11 @@ export class PayrollEmailService extends BaseRepository {
 
       await emailProvider.send(
         row.recipientEmail,
-        `Your payslip ${row.payslip.payslipNumber} — ${APP_NAME}`,
+        `Your payslip ${payslip.payslipNumber} — ${APP_NAME}`,
         payslipEmailBody({
           employeeName: `${row.employee.firstName} ${row.employee.lastName}`.trim(),
-          payslipNumber: row.payslip.payslipNumber,
-          netSalary: Number(row.payslip.netSalary),
+          payslipNumber: payslip.payslipNumber,
+          netSalary: Number(payslip.netSalary),
         }),
         {
           attachments,

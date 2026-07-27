@@ -1,3 +1,11 @@
+import type {
+  AllowanceRule,
+  BonusRule,
+  CommissionRule,
+  IncentiveRule,
+  OvertimeRule,
+} from "@prisma/client";
+
 import { BaseRepository } from "@/infrastructure/database/base-repository";
 import { prisma } from "@/infrastructure/database/prisma-client";
 import {
@@ -15,6 +23,11 @@ import { createOvertimeCalculationService } from "@/modules/earnings/application
 import { createOvertimeService } from "@/modules/earnings/application/overtime.service";
 
 export class EarningsService extends BaseRepository {
+  async listRules(type: "bonus"): Promise<BonusRule[]>;
+  async listRules(type: "incentive"): Promise<IncentiveRule[]>;
+  async listRules(type: "commission"): Promise<CommissionRule[]>;
+  async listRules(type: "allowance"): Promise<AllowanceRule[]>;
+  async listRules(type: "overtime"): Promise<OvertimeRule[]>;
   async listRules(type: "bonus" | "incentive" | "commission" | "allowance" | "overtime") {
     const companyId = this.requireCompanyId();
     switch (type) {
