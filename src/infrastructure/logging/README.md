@@ -1,0 +1,4 @@
+# Logging
+
+Structured logging abstraction.
+

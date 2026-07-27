@@ -1,0 +1,909 @@
+// =============================================================================
+// Enterprise Enums — Atheron HRMS
+// =============================================================================
+
+enum RecordStatus {
+  active
+  inactive
+  suspended
+  trial
+
+  @@map("record_status")
+}
+
+enum EmployeeStatus {
+  active
+  inactive
+  probation
+  on_notice
+  on_leave
+  resigned
+  terminated
+  separated
+  suspended
+  retired
+
+  @@map("employee_status")
+}
+
+enum EmploymentType {
+  permanent
+  contract
+  intern
+  consultant
+  daily
+  hourly
+  trainee
+
+  @@map("employment_type")
+}
+
+enum Gender {
+  male
+  female
+  other
+  prefer_not_to_say
+
+  @@map("gender")
+}
+
+enum UserStatus {
+  active
+  inactive
+  locked
+  suspended
+  pending_verification
+
+  @@map("user_status")
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  half_day
+  late
+  early_leaving
+  on_leave
+  holiday
+  weekly_off
+  work_from_home
+  outdoor_duty
+  overtime
+
+  @@map("attendance_status")
+}
+
+enum AttendanceMethod {
+  manual
+  gps
+  qr
+  face
+  biometric
+
+  @@map("attendance_method")
+}
+
+enum PunchType {
+  in
+  out
+  break_start
+  break_end
+
+  @@map("punch_type")
+}
+
+enum GpsActivityType {
+  office_check_in
+  office_check_out
+  field_visit
+  outdoor_duty
+  client_visit
+  remote_work
+  duty_start
+  duty_end
+  location_punch
+
+  @@map("gps_activity_type")
+}
+
+enum LocationValidationStatus {
+  valid
+  outside_radius
+  gps_disabled
+  permission_denied
+  low_accuracy
+  fraud_suspected
+  override_applied
+
+  @@map("location_validation_status")
+}
+
+enum QrCodeType {
+  office
+  branch
+  department
+  shift
+  meeting
+  training
+  visitor
+
+  @@map("qr_code_type")
+}
+
+enum QrCodeStatus {
+  active
+  expired
+  revoked
+  used
+
+  @@map("qr_code_status")
+}
+
+enum QrValidationMode {
+  qr_only
+  qr_and_gps
+  qr_and_wifi
+
+  @@map("qr_validation_mode")
+}
+
+enum QrScanResult {
+  success
+  expired
+  invalid_signature
+  replay_detected
+  wrong_branch
+  wrong_shift
+  wrong_department
+  fraud_suspected
+  policy_violation
+  revoked
+  invalid_payload
+  clock_tampering
+
+  @@map("qr_scan_result")
+}
+
+enum ShiftType {
+  fixed
+  flexible
+  rotational
+
+  @@map("shift_type")
+}
+
+enum LeaveStatus {
+  draft
+  pending
+  approved
+  rejected
+  cancelled
+  sent_back
+
+  @@map("leave_status")
+}
+
+enum LeaveHalfDayType {
+  none
+  first_half
+  second_half
+
+  @@map("leave_half_day_type")
+}
+
+enum LeaveUnit {
+  days
+  hours
+
+  @@map("leave_unit")
+}
+
+enum LeaveApprovalRole {
+  manager
+  department_head
+  hr
+
+  @@map("leave_approval_role")
+}
+
+enum LeaveAccrualPeriod {
+  monthly
+  yearly
+
+  @@map("leave_accrual_period")
+}
+
+enum LeaveEncashmentStatus {
+  draft
+  pending
+  approved
+  rejected
+  paid
+
+  @@map("leave_encashment_status")
+}
+
+enum PayrollStatus {
+  draft
+  calculated
+  pending_approval
+  approved
+  locked
+  paid
+  cancelled
+  processing
+  review
+  finalized
+
+  @@map("payroll_status")
+}
+
+enum PayrollPeriodType {
+  monthly
+  weekly
+  biweekly
+  custom
+
+  @@map("payroll_period_type")
+}
+
+enum PayrollPeriodStatus {
+  draft
+  open
+  closed
+  locked
+
+  @@map("payroll_period_status")
+}
+
+enum PayrollCycleStatus {
+  draft
+  open
+  closed
+
+  @@map("payroll_cycle_status")
+}
+
+enum SalaryComponentType {
+  earning
+  deduction
+
+  @@map("salary_component_type")
+}
+
+enum SalaryCalculationType {
+  fixed
+  percentage
+  formula
+  manual
+  computed
+
+  @@map("salary_calculation_type")
+}
+
+enum SalaryApprovalStatus {
+  draft
+  pending
+  approved
+  rejected
+
+  @@map("salary_approval_status")
+}
+
+enum SalaryTemplateScope {
+  department
+  designation
+  employee
+  branch
+
+  @@map("salary_template_scope")
+}
+
+enum PayFrequency {
+  monthly
+  weekly
+  daily
+  hourly
+
+  @@map("pay_frequency")
+}
+
+enum LoanStatus {
+  pending
+  approved
+  active
+  completed
+  cancelled
+
+  @@map("loan_status")
+}
+
+enum AdvanceStatus {
+  pending
+  approved
+  recovered
+  cancelled
+
+  @@map("advance_status")
+}
+
+enum LoanInterestType {
+  none
+  flat
+  reducing_balance
+  simple
+  compound
+
+  @@map("loan_interest_type")
+}
+
+enum LoanRecoveryMode {
+  monthly
+  weekly
+  biweekly
+  custom
+
+  @@map("loan_recovery_mode")
+}
+
+enum EMIStatus {
+  scheduled
+  due
+  paid
+  overdue
+  waived
+  skipped
+
+  @@map("emi_status")
+}
+
+enum LoanWorkflowStatus {
+  draft
+  submitted
+  manager_approved
+  hr_approved
+  finance_approved
+  approved
+  rejected
+  cancelled
+  active
+  completed
+  foreclosed
+
+  @@map("loan_workflow_status")
+}
+
+enum RecoveryEntryType {
+  emi
+  advance
+  penalty
+  manual
+  asset
+  prepayment
+  foreclosure
+  write_off
+  waiver
+
+  @@map("recovery_entry_type")
+}
+
+enum PayslipDocumentStatus {
+  draft
+  generated
+  archived
+  failed
+  superseded
+
+  @@map("payslip_document_status")
+}
+
+enum PayrollDocumentType {
+  payslip
+  salary_certificate
+  payroll_register
+  salary_register
+  merged_payslips
+  department_payroll
+  branch_payroll
+  monthly_payroll
+
+  @@map("payroll_document_type")
+}
+
+enum DocumentDistributionStatus {
+  pending
+  queued
+  sent
+  failed
+  retry
+
+  @@map("document_distribution_status")
+}
+
+enum PayrollArchiveStatus {
+  active
+  archived
+  immutable
+
+  @@map("payroll_archive_status")
+}
+
+enum PayslipPasswordRule {
+  employee_id_dob
+  mobile_last4
+  employee_code_dob
+  custom_policy
+  none
+
+  @@map("payslip_password_rule")
+}
+
+enum PayrollReportType {
+  monthly_payroll
+  department_payroll
+  branch_payroll
+  employee_payroll
+  salary_register
+  payroll_summary
+  payroll_variance
+  payroll_comparison
+
+  @@map("payroll_report_type")
+}
+
+enum BankTransferStatus {
+  pending
+  processing
+  transferred
+  completed
+  failed
+  rejected
+  cancelled
+  retry
+
+  @@map("bank_transfer_status")
+}
+
+enum BankProviderCode {
+  icici
+  hdfc
+  axis
+  sbi
+  pnb
+  canara
+  kotak
+  idfc
+  indusind
+  generic_csv
+  custom
+
+  @@map("bank_provider_code")
+}
+
+enum BankFileFormat {
+  neft
+  rtgs
+  csv
+  excel
+  custom
+
+  @@map("bank_file_format")
+}
+
+enum AccountingProviderCode {
+  tally_prime
+  zoho_books
+  busy
+  erpnext
+  quickbooks
+  custom_csv
+  journal_entry
+  general_ledger
+
+  @@map("accounting_provider_code")
+}
+
+enum CostCenterType {
+  cost_center
+  sub_cost_center
+  project
+  business_unit
+  location
+
+  @@map("cost_center_type")
+}
+
+enum JournalEntryStatus {
+  draft
+  posted
+  exported
+  cancelled
+
+  @@map("journal_entry_status")
+}
+
+enum PayrollApprovalStatus {
+  pending
+  in_progress
+  approved
+  rejected
+  sent_back
+  cancelled
+
+  @@map("payroll_approval_status")
+}
+
+enum PayrollApprovalStepStatus {
+  pending
+  in_progress
+  approved
+  rejected
+  sent_back
+  delegated
+  escalated
+  skipped
+
+  @@map("payroll_approval_step_status")
+}
+
+enum PayrollApprovalStepRole {
+  hr
+  finance
+  accounts
+  director
+  custom
+
+  @@map("payroll_approval_step_role")
+}
+
+enum PayrollApprovalAction {
+  approve
+  reject
+  send_back
+  delegate
+  escalate
+
+  @@map("payroll_approval_action")
+}
+
+enum PayrollLockType {
+  full
+  partial
+  compliance
+
+  @@map("payroll_lock_type")
+}
+
+enum PayrollSnapshotType {
+  full
+  compliance
+  backup
+  version
+
+  @@map("payroll_snapshot_type")
+}
+
+enum RetroPayrollType {
+  late_promotion
+  late_increment
+  attendance_correction
+  leave_correction
+  statutory_revision
+  manual
+
+  @@map("retro_payroll_type")
+}
+
+enum RetroPayrollStatus {
+  draft
+  calculated
+  approved
+  merged
+  cancelled
+
+  @@map("retro_payroll_status")
+}
+
+enum PayrollArrearType {
+  salary
+  allowance
+  bonus
+  overtime
+  manual
+
+  @@map("payroll_arrear_type")
+}
+
+enum PayrollArrearStatus {
+  pending
+  approved
+  merged
+  recovered
+  cancelled
+
+  @@map("payroll_arrear_status")
+}
+
+enum PayrollYearStatus {
+  open
+  closed
+  locked
+  archived
+
+  @@map("payroll_year_status")
+}
+
+enum PayrollBackupStatus {
+  active
+  restored
+  superseded
+  invalid
+
+  @@map("payroll_backup_status")
+}
+
+enum PayrollReopenAction {
+  unlock
+  modify
+  recalculate
+  relock
+
+  @@map("payroll_reopen_action")
+}
+
+enum BonusStatus {
+  pending
+  approved
+  paid
+  cancelled
+
+  @@map("bonus_status")
+}
+
+enum IncentiveStatus {
+  pending
+  approved
+  paid
+  cancelled
+
+  @@map("incentive_status")
+}
+
+enum EarningsApprovalStatus {
+  draft
+  submitted
+  manager_approved
+  hr_approved
+  finance_approved
+  approved
+  rejected
+  cancelled
+
+  @@map("earnings_approval_status")
+}
+
+enum EarningsRuleScope {
+  company
+  branch
+  department
+  designation
+  employee
+
+  @@map("earnings_rule_scope")
+}
+
+enum EarningsCalculationMode {
+  fixed
+  percentage
+  formula
+  conditional
+  slab
+
+  @@map("earnings_calculation_mode")
+}
+
+enum OvertimeType {
+  hourly
+  daily
+  weekly
+  holiday
+  weekend
+  night_shift
+  double
+  triple
+  custom
+
+  @@map("overtime_type")
+}
+
+enum OvertimeRecordStatus {
+  draft
+  submitted
+  approved
+  rejected
+  paid
+  cancelled
+
+  @@map("overtime_record_status")
+}
+
+enum ExpenseStatus {
+  draft
+  pending
+  approved
+  rejected
+  paid
+  cancelled
+
+  @@map("expense_status")
+}
+
+enum AssetStatus {
+  available
+  assigned
+  maintenance
+  retired
+  disposed
+
+  @@map("asset_status")
+}
+
+enum RecruitmentStatus {
+  draft
+  open
+  closed
+  on_hold
+  filled
+
+  @@map("recruitment_status")
+}
+
+enum InterviewStatus {
+  scheduled
+  completed
+  cancelled
+  no_show
+
+  @@map("interview_status")
+}
+
+enum CandidateStatus {
+  applied
+  screening
+  interview
+  offered
+  hired
+  rejected
+  withdrawn
+
+  @@map("candidate_status")
+}
+
+enum NotificationType {
+  in_app
+  email
+  sms
+  whatsapp
+  push
+
+  @@map("notification_type")
+}
+
+enum AnnouncementStatus {
+  draft
+  published
+  archived
+
+  @@map("announcement_status")
+}
+
+enum PermissionScope {
+  global
+  company
+  branch
+  team
+  self
+
+  @@map("permission_scope")
+}
+
+enum FileCategory {
+  employee_photo
+  document
+  certificate
+  payslip
+  report
+  company_logo
+  attendance_capture
+
+  @@map("file_category")
+}
+
+enum HolidayType {
+  public
+  restricted
+  optional
+
+  @@map("holiday_type")
+}
+
+enum TrainingStatus {
+  draft
+  active
+  completed
+  cancelled
+
+  @@map("training_status")
+}
+
+enum PerformanceReviewStatus {
+  draft
+  in_progress
+  submitted
+  completed
+
+  @@map("performance_review_status")
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  login
+  logout
+  export
+  view
+
+  @@map("audit_action")
+}
+
+enum SettingScope {
+  system
+  company
+
+  @@map("setting_scope")
+}
+
+enum SyncStatus {
+  synced
+  pending
+
+  @@map("sync_status")
+}
+
+enum HRPolicyCategory {
+  attendance
+  leave
+  payroll
+  overtime
+  probation
+
+  @@map("hr_policy_category")
+}
+
+enum DocumentVerificationStatus {
+  pending_verification
+  verified
+  rejected
+  expired
+  archived
+
+  @@map("document_verification_status")
+}
+
+enum DocumentAccessAction {
+  view
+  download
+  preview
+  print
+
+  @@map("document_access_action")
+}
+
+enum SecurityEventSeverity {
+  info
+  warning
+  critical
+
+  @@map("security_event_severity")
+}

@@ -1,0 +1,265 @@
+// =============================================================================
+// Payroll Governance — Approval, Locking, Versioning, Retro, Arrears, FY
+// =============================================================================
+
+model PayrollApproval {
+  id              String                  @id @default(uuid()) @db.Uuid
+  companyId       String                  @map("company_id") @db.Uuid
+  payrollId       String                  @map("payroll_id") @db.Uuid
+  workflowName    String                  @default("default") @map("workflow_name") @db.VarChar(100)
+  currentStep     Int                     @default(1) @map("current_step")
+  totalSteps      Int                     @default(4) @map("total_steps")
+  status          PayrollApprovalStatus   @default(pending)
+  submittedBy     String?                 @map("submitted_by") @db.Uuid
+  submittedAt     DateTime?               @map("submitted_at") @db.Timestamptz
+  completedAt     DateTime?               @map("completed_at") @db.Timestamptz
+  metadata        Json                    @default("{}")
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll Payroll              @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  steps   PayrollApprovalStep[]
+
+  @@index([companyId, status], map: "idx_payroll_approvals_company_status")
+  @@index([payrollId], map: "idx_payroll_approvals_payroll")
+  @@map("payroll_approvals")
+}
+
+model PayrollApprovalStep {
+  id               String                    @id @default(uuid()) @db.Uuid
+  companyId        String                    @map("company_id") @db.Uuid
+  payrollApprovalId String                   @map("payroll_approval_id") @db.Uuid
+  stepNumber       Int                       @map("step_number")
+  stepRole         PayrollApprovalStepRole   @map("step_role")
+  stepLabel        String                    @map("step_label") @db.VarChar(100)
+  status           PayrollApprovalStepStatus @default(pending)
+  approverUserId   String?                   @map("approver_user_id") @db.Uuid
+  delegatedToUserId String?                  @map("delegated_to_user_id") @db.Uuid
+  action           PayrollApprovalAction?
+  comments         String?                   @db.Text
+  actedAt          DateTime?                 @map("acted_at") @db.Timestamptz
+  metadata         Json                      @default("{}")
+  createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+
+  payrollApproval PayrollApproval @relation(fields: [payrollApprovalId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollApprovalId, stepNumber], map: "uq_payroll_approval_steps_approval_number")
+  @@index([companyId, status], map: "idx_payroll_approval_steps_company_status")
+  @@map("payroll_approval_steps")
+}
+
+model PayrollLock {
+  id            String          @id @default(uuid()) @db.Uuid
+  companyId     String          @map("company_id") @db.Uuid
+  payrollId     String          @map("payroll_id") @db.Uuid
+  lockType      PayrollLockType @default(full) @map("lock_type")
+  isActive      Boolean         @default(true) @map("is_active")
+  lockedBy      String?         @map("locked_by") @db.Uuid
+  lockedAt      DateTime        @default(now()) @map("locked_at") @db.Timestamptz
+  unlockedBy    String?         @map("unlocked_by") @db.Uuid
+  unlockedAt    DateTime?       @map("unlocked_at") @db.Timestamptz
+  unlockReason  String?         @map("unlock_reason") @db.Text
+  unlockApprovedBy String?      @map("unlock_approved_by") @db.Uuid
+  metadata      Json            @default("{}")
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@index([payrollId, isActive], map: "idx_payroll_locks_payroll_active")
+  @@map("payroll_locks")
+}
+
+model PayrollSnapshot {
+  id              String              @id @default(uuid()) @db.Uuid
+  companyId       String              @map("company_id") @db.Uuid
+  payrollId       String              @map("payroll_id") @db.Uuid
+  snapshotType    PayrollSnapshotType @default(full) @map("snapshot_type")
+  versionNumber   Int                 @map("version_number")
+  contentHash     String              @map("content_hash") @db.VarChar(64)
+  payload         Json                @default("{}")
+  employeeCount   Int                 @default(0) @map("employee_count")
+  totalGross      Decimal             @default(0) @map("total_gross") @db.Decimal(15, 2)
+  totalNet        Decimal             @default(0) @map("total_net") @db.Decimal(15, 2)
+  isImmutable     Boolean             @default(true) @map("is_immutable")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  createdBy       String?             @map("created_by") @db.Uuid
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollId, versionNumber], map: "uq_payroll_snapshots_payroll_version")
+  @@index([companyId, createdAt], map: "idx_payroll_snapshots_company_created")
+  @@map("payroll_snapshots")
+}
+
+model RetroPayroll {
+  id                  String            @id @default(uuid()) @db.Uuid
+  companyId           String            @map("company_id") @db.Uuid
+  employeeId          String            @map("employee_id") @db.Uuid
+  payrollId           String?           @map("payroll_id") @db.Uuid
+  retroType           RetroPayrollType  @map("retro_type")
+  status              RetroPayrollStatus @default(draft)
+  originalPeriodStart DateTime          @map("original_period_start") @db.Date
+  originalPeriodEnd   DateTime          @map("original_period_end") @db.Date
+  originalAmount      Decimal           @default(0) @map("original_amount") @db.Decimal(15, 2)
+  revisedAmount       Decimal           @default(0) @map("revised_amount") @db.Decimal(15, 2)
+  differenceAmount    Decimal           @default(0) @map("difference_amount") @db.Decimal(15, 2)
+  adjustmentAmount    Decimal           @default(0) @map("adjustment_amount") @db.Decimal(15, 2)
+  recoveryAmount      Decimal           @default(0) @map("recovery_amount") @db.Decimal(15, 2)
+  reason              String?           @db.Text
+  calculationPayload  Json              @default("{}") @map("calculation_payload")
+  approvedBy          String?           @map("approved_by") @db.Uuid
+  approvedAt          DateTime?         @map("approved_at") @db.Timestamptz
+  metadata            Json              @default("{}")
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  createdBy           String?           @map("created_by") @db.Uuid
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  payroll  Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+  arrears  PayrollArrear[]
+
+  @@index([companyId, status], map: "idx_retro_payrolls_company_status")
+  @@index([employeeId], map: "idx_retro_payrolls_employee")
+  @@map("retro_payrolls")
+}
+
+model PayrollArrear {
+  id               String              @id @default(uuid()) @db.Uuid
+  companyId        String              @map("company_id") @db.Uuid
+  employeeId       String              @map("employee_id") @db.Uuid
+  retroPayrollId   String?             @map("retro_payroll_id") @db.Uuid
+  targetPayrollId  String?             @map("target_payroll_id") @db.Uuid
+  arrearType       PayrollArrearType   @map("arrear_type")
+  status           PayrollArrearStatus @default(pending)
+  amount           Decimal             @db.Decimal(15, 2)
+  periodStart      DateTime            @map("period_start") @db.Date
+  periodEnd        DateTime            @map("period_end") @db.Date
+  mergeIntoPayroll Boolean             @default(true) @map("merge_into_payroll")
+  mergedAt         DateTime?           @map("merged_at") @db.Timestamptz
+  remarks          String?             @db.Text
+  metadata         Json                @default("{}")
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  createdBy        String?             @map("created_by") @db.Uuid
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  retroPayroll RetroPayroll? @relation(fields: [retroPayrollId], references: [id], onDelete: SetNull)
+  targetPayroll Payroll?     @relation("PayrollArrearTarget", fields: [targetPayrollId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status], map: "idx_payroll_arrears_company_status")
+  @@index([employeeId], map: "idx_payroll_arrears_employee")
+  @@map("payroll_arrears")
+}
+
+model PayrollYear {
+  id                    String             @id @default(uuid()) @db.Uuid
+  companyId             String             @map("company_id") @db.Uuid
+  financialYearId       String?            @map("financial_year_id") @db.Uuid
+  code                  String             @db.VarChar(20)
+  label                 String             @db.VarChar(100)
+  startDate             DateTime           @map("start_date") @db.Date
+  endDate               DateTime           @map("end_date") @db.Date
+  status                PayrollYearStatus  @default(open)
+  isCurrent             Boolean            @default(false) @map("is_current")
+  carryForwardConfig    Json               @default("{}") @map("carry_forward_config")
+  openingBalances       Json               @default("{}") @map("opening_balances")
+  closedAt              DateTime?          @map("closed_at") @db.Timestamptz
+  closedBy              String?            @map("closed_by") @db.Uuid
+  lockedAt              DateTime?          @map("locked_at") @db.Timestamptz
+  lockedBy              String?            @map("locked_by") @db.Uuid
+  archivedAt            DateTime?          @map("archived_at") @db.Timestamptz
+  archivedBy            String?            @map("archived_by") @db.Uuid
+  metadata              Json               @default("{}")
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy             String?            @map("created_by") @db.Uuid
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  financialYear FinancialYear? @relation(fields: [financialYearId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, code], map: "uq_payroll_years_company_code")
+  @@index([companyId, status], map: "idx_payroll_years_company_status")
+  @@map("payroll_years")
+}
+
+model PayrollBackup {
+  id              String              @id @default(uuid()) @db.Uuid
+  companyId       String              @map("company_id") @db.Uuid
+  payrollId       String              @map("payroll_id") @db.Uuid
+  backupNumber    String              @map("backup_number") @db.VarChar(50)
+  status          PayrollBackupStatus @default(active)
+  contentHash     String              @map("content_hash") @db.VarChar(64)
+  payload         Json                @default("{}")
+  fileId          String?             @map("file_id") @db.Uuid
+  restoredAt      DateTime?           @map("restored_at") @db.Timestamptz
+  restoredBy      String?             @map("restored_by") @db.Uuid
+  metadata        Json                @default("{}")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  createdBy       String?             @map("created_by") @db.Uuid
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, backupNumber], map: "uq_payroll_backups_company_number")
+  @@index([payrollId], map: "idx_payroll_backups_payroll")
+  @@map("payroll_backups")
+}
+
+model PayrollComplianceSnapshot {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  payrollId       String   @map("payroll_id") @db.Uuid
+  snapshotNumber  String   @map("snapshot_number") @db.VarChar(50)
+  pfValues        Json     @default("{}") @map("pf_values")
+  esiValues       Json     @default("{}") @map("esi_values")
+  ptValues        Json     @default("{}") @map("pt_values")
+  tdsValues       Json     @default("{}") @map("tds_values")
+  salarySummary   Json     @default("{}") @map("salary_summary")
+  employeeStatus  Json     @default("{}") @map("employee_status")
+  rulesVersion    Json     @default("{}") @map("rules_version")
+  usedConfiguration Json   @default("{}") @map("used_configuration")
+  contentHash     String   @map("content_hash") @db.VarChar(64)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy       String?  @map("created_by") @db.Uuid
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollId, snapshotNumber], map: "uq_payroll_compliance_snapshots_payroll_number")
+  @@index([companyId, createdAt], map: "idx_payroll_compliance_snapshots_company")
+  @@map("payroll_compliance_snapshots")
+}
+
+model PayrollReopenLog {
+  id              String              @id @default(uuid()) @db.Uuid
+  companyId       String              @map("company_id") @db.Uuid
+  payrollId       String              @map("payroll_id") @db.Uuid
+  action          PayrollReopenAction
+  reason          String              @db.Text
+  approvedBy      String?             @map("approved_by") @db.Uuid
+  actorUserId     String?             @map("actor_user_id") @db.Uuid
+  previousStatus  String              @map("previous_status") @db.VarChar(30)
+  newStatus       String              @map("new_status") @db.VarChar(30)
+  metadata        Json                @default("{}")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@index([payrollId, createdAt], map: "idx_payroll_reopen_logs_payroll")
+  @@map("payroll_reopen_logs")
+}
+
+model PayrollGovernanceAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([companyId, entityType, createdAt], map: "idx_payroll_governance_audit_company_entity")
+  @@map("payroll_governance_audit_logs")
+}

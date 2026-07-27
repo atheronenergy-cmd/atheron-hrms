@@ -1,0 +1,228 @@
+// =============================================================================
+// Payroll Reporting, Banking & Accounting Integration
+// =============================================================================
+
+model CostCenter {
+  id          String         @id @default(uuid()) @db.Uuid
+  companyId   String         @map("company_id") @db.Uuid
+  parentId    String?        @map("parent_id") @db.Uuid
+  name        String         @db.VarChar(100)
+  code        String         @db.VarChar(50)
+  centerType  CostCenterType @default(cost_center) @map("center_type")
+  description String?        @db.Text
+  status      RecordStatus   @default(active)
+  metadata    Json           @default("{}")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?        @map("created_by") @db.Uuid
+  updatedBy   String?        @map("updated_by") @db.Uuid
+  deletedAt   DateTime?      @map("deleted_at") @db.Timestamptz
+  version     Int            @default(1)
+
+  company  Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  parent   CostCenter?  @relation("CostCenterHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children CostCenter[] @relation("CostCenterHierarchy")
+  employees Employee[]
+
+  @@unique([companyId, code], map: "uq_cost_centers_company_code")
+  @@index([companyId, centerType], map: "idx_cost_centers_company_type")
+  @@map("cost_centers")
+}
+
+model PayrollReport {
+  id              String            @id @default(uuid()) @db.Uuid
+  companyId       String            @map("company_id") @db.Uuid
+  payrollId       String?           @map("payroll_id") @db.Uuid
+  payrollPeriodId String?           @map("payroll_period_id") @db.Uuid
+  reportType      PayrollReportType @map("report_type")
+  title           String            @db.VarChar(200)
+  filters         Json              @default("{}")
+  rowCount        Int               @default(0) @map("row_count")
+  summary         Json              @default("{}")
+  fileId          String?           @map("file_id") @db.Uuid
+  generatedAt     DateTime          @default(now()) @map("generated_at") @db.Timestamptz
+  generatedBy     String?           @map("generated_by") @db.Uuid
+  metadata        Json              @default("{}")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, reportType, generatedAt], map: "idx_payroll_reports_company_type")
+  @@map("payroll_reports")
+}
+
+model BankTransferBatch {
+  id             String             @id @default(uuid()) @db.Uuid
+  companyId      String             @map("company_id") @db.Uuid
+  payrollId      String             @map("payroll_id") @db.Uuid
+  batchNumber    String             @map("batch_number") @db.VarChar(50)
+  providerCode   BankProviderCode   @map("provider_code")
+  fileFormat     BankFileFormat     @map("file_format")
+  status         BankTransferStatus @default(pending)
+  totalAmount    Decimal            @default(0) @map("total_amount") @db.Decimal(15, 2)
+  recordCount    Int                @default(0) @map("record_count")
+  fileId         String?            @map("file_id") @db.Uuid
+  mappingConfig  Json               @default("{}") @map("mapping_config")
+  validationLog  Json               @default("[]") @map("validation_log")
+  approvedBy     String?            @map("approved_by") @db.Uuid
+  approvedAt     DateTime?          @map("approved_at") @db.Timestamptz
+  generatedAt    DateTime           @default(now()) @map("generated_at") @db.Timestamptz
+  generatedBy    String?            @map("generated_by") @db.Uuid
+  metadata       Json               @default("{}")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  company  Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll  Payroll              @relation(fields: [payrollId], references: [id], onDelete: Restrict)
+  records  BankTransferRecord[]
+
+  @@unique([companyId, batchNumber], map: "uq_bank_transfer_batches_company_number")
+  @@index([companyId, status], map: "idx_bank_transfer_batches_company_status")
+  @@map("bank_transfer_batches")
+}
+
+model BankTransferRecord {
+  id                  String             @id @default(uuid()) @db.Uuid
+  companyId           String             @map("company_id") @db.Uuid
+  batchId             String             @map("batch_id") @db.Uuid
+  employeeId          String             @map("employee_id") @db.Uuid
+  payrollCalculationId String?           @map("payroll_calculation_id") @db.Uuid
+  beneficiaryName     String             @map("beneficiary_name") @db.VarChar(200)
+  accountNumber       String             @map("account_number") @db.VarChar(50)
+  ifscCode            String             @map("ifsc_code") @db.VarChar(20)
+  bankName            String?            @map("bank_name") @db.VarChar(200)
+  amount              Decimal            @db.Decimal(15, 2)
+  paymentMode         String             @default("NEFT") @map("payment_mode") @db.VarChar(20)
+  status              BankTransferStatus @default(pending)
+  upiId               String?            @map("upi_id") @db.VarChar(100)
+  virtualAccount      String?            @map("virtual_account") @db.VarChar(50)
+  referenceNumber     String?            @map("reference_number") @db.VarChar(100)
+  failureReason       String?            @map("failure_reason") @db.Text
+  metadata            Json               @default("{}")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  batch    BankTransferBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  employee Employee          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([batchId], map: "idx_bank_transfer_records_batch")
+  @@index([employeeId], map: "idx_bank_transfer_records_employee")
+  @@map("bank_transfer_records")
+}
+
+model PayrollExportRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  payrollId    String?  @map("payroll_id") @db.Uuid
+  exportType   String   @map("export_type") @db.VarChar(50)
+  fileId       String?  @map("file_id") @db.Uuid
+  rowCount     Int      @default(0) @map("row_count")
+  filters      Json     @default("{}")
+  generatedAt  DateTime @default(now()) @map("generated_at") @db.Timestamptz
+  generatedBy  String?  @map("generated_by") @db.Uuid
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, exportType], map: "idx_payroll_export_records_company_type")
+  @@map("payroll_export_records")
+}
+
+model AccountingExport {
+  id           String                 @id @default(uuid()) @db.Uuid
+  companyId    String                 @map("company_id") @db.Uuid
+  payrollId    String                 @map("payroll_id") @db.Uuid
+  providerCode AccountingProviderCode @map("provider_code")
+  exportNumber String                 @map("export_number") @db.VarChar(50)
+  fileId       String?                @map("file_id") @db.Uuid
+  mappingConfig Json                  @default("{}") @map("mapping_config")
+  summary      Json                   @default("{}")
+  generatedAt  DateTime               @default(now()) @map("generated_at") @db.Timestamptz
+  generatedBy  String?                @map("generated_by") @db.Uuid
+  metadata     Json                   @default("{}")
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll       Payroll        @relation(fields: [payrollId], references: [id], onDelete: Restrict)
+  journalEntries JournalEntry[]
+
+  @@unique([companyId, exportNumber], map: "uq_accounting_exports_company_number")
+  @@map("accounting_exports")
+}
+
+model JournalEntry {
+  id                 String             @id @default(uuid()) @db.Uuid
+  companyId          String             @map("company_id") @db.Uuid
+  payrollId          String             @map("payroll_id") @db.Uuid
+  accountingExportId String?            @map("accounting_export_id") @db.Uuid
+  entryNumber        String             @map("entry_number") @db.VarChar(50)
+  entryDate          DateTime           @map("entry_date") @db.Date
+  description        String             @db.VarChar(255)
+  status             JournalEntryStatus @default(draft)
+  totalDebit         Decimal            @default(0) @map("total_debit") @db.Decimal(15, 2)
+  totalCredit        Decimal            @default(0) @map("total_credit") @db.Decimal(15, 2)
+  metadata           Json               @default("{}")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  createdBy          String?            @map("created_by") @db.Uuid
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll          Payroll           @relation(fields: [payrollId], references: [id], onDelete: Restrict)
+  accountingExport AccountingExport? @relation(fields: [accountingExportId], references: [id], onDelete: SetNull)
+  lines            JournalEntryLine[]
+
+  @@unique([companyId, entryNumber], map: "uq_journal_entries_company_number")
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @map("company_id") @db.Uuid
+  journalEntryId String   @map("journal_entry_id") @db.Uuid
+  accountCode    String   @map("account_code") @db.VarChar(50)
+  accountName    String   @map("account_name") @db.VarChar(150)
+  debitAmount    Decimal  @default(0) @map("debit_amount") @db.Decimal(15, 2)
+  creditAmount   Decimal  @default(0) @map("credit_amount") @db.Decimal(15, 2)
+  costCenterCode String?  @map("cost_center_code") @db.VarChar(50)
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+
+  @@index([journalEntryId], map: "idx_journal_entry_lines_entry")
+  @@map("journal_entry_lines")
+}
+
+model PayrollAnalyticsSnapshot {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  payrollId    String?  @map("payroll_id") @db.Uuid
+  snapshotDate DateTime @map("snapshot_date") @db.Date
+  metrics      Json     @default("{}")
+  charts       Json     @default("{}")
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, snapshotDate], map: "idx_payroll_analytics_company_date")
+  @@map("payroll_analytics_snapshots")
+}
+
+model PayrollReportingAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([companyId, entityType, createdAt], map: "idx_payroll_reporting_audit_company_entity")
+  @@map("payroll_reporting_audit_logs")
+}

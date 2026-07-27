@@ -1,0 +1,245 @@
+// =============================================================================
+// Organization — Company, Branch, Department, Designation
+// =============================================================================
+
+/// Root tenant entity. All business data scoped by companyId.
+model Company {
+  id                   String       @id @default(uuid()) @db.Uuid
+  name                 String       @db.VarChar(255)
+  legalName            String?      @map("legal_name") @db.VarChar(255)
+  slug                 String       @unique @db.VarChar(100)
+  companyCode          String?      @unique @map("company_code") @db.VarChar(50)
+  logoFileId           String?      @map("logo_file_id") @db.Uuid
+  registrationNumber   String?      @map("registration_number") @db.VarChar(100)
+  taxId                String?      @map("tax_id") @db.VarChar(100)
+  gstNumber            String?      @map("gst_number") @db.VarChar(50)
+  panNumber            String?      @map("pan_number") @db.VarChar(20)
+  cinNumber            String?      @map("cin_number") @db.VarChar(30)
+  email                String?      @db.VarChar(255)
+  phone                String?      @db.VarChar(20)
+  website              String?      @db.VarChar(255)
+  address              Json         @default("{}")
+  countryCode          String       @default("IN") @map("country_code") @db.Char(2)
+  state                String?      @db.VarChar(100)
+  city                 String?      @db.VarChar(100)
+  pinCode              String?      @map("pin_code") @db.VarChar(20)
+  currencyCode         String       @default("INR") @map("currency_code") @db.Char(3)
+  timezone             String       @default("Asia/Kolkata") @db.VarChar(50)
+  dateFormat           String       @default("dd MMM yyyy") @map("date_format") @db.VarChar(30)
+  fiscalYearStartMonth Int          @default(4) @map("fiscal_year_start_month") @db.SmallInt
+  payrollCycleDay      Int?         @map("payroll_cycle_day") @db.SmallInt
+  status               RecordStatus @default(active)
+  settings             Json         @default("{}")
+  remarks              String?      @db.Text
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?      @map("created_by") @db.Uuid
+  updatedBy            String?      @map("updated_by") @db.Uuid
+  deletedAt            DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy            String?      @map("deleted_by") @db.Uuid
+  version              Int          @default(1)
+
+  branches          Branch[]
+  departments       Department[]
+  designations      Designation[]
+  hrPolicies        HRPolicy[]
+  employees         Employee[]
+  employeeCodeSequences EmployeeCodeSequence[]
+  employeeTimelineEvents EmployeeTimelineEvent[]
+  roles             Role[]
+  users             User[]
+  shifts            Shift[]
+  holidays          Holiday[]
+  leaveTypes        LeaveType[]
+  leavePolicies     LeavePolicy[]
+  payrollCycles     PayrollCycle[]
+  salaryStructures  SalaryStructure[]
+  salaryComponents  SalaryComponent[]
+  componentCategories ComponentCategory[]
+  payGrades         PayGrade[]
+  salaryFormulas    SalaryFormula[]
+  salaryTemplates   SalaryTemplate[]
+  employeeSalaries  EmployeeSalary[]
+  salaryRevisions   SalaryRevision[]
+  recruitments      Recruitment[]
+  expenseCategories ExpenseCategory[]
+  assets            Asset[]
+  announcements     Announcement[]
+  settingsRecords   Setting[]
+  securityPolicy    SecurityPolicy?
+  files             File[]
+  documentCategories DocumentCategory[]
+  employeeDocuments  EmployeeDocument[]
+  notifications     Notification[]
+  attendances       Attendance[]
+  attendanceLogs    AttendanceLog[]
+  attendanceRules   AttendanceRule[]
+  qrCodes           QrCode[]
+  qrPolicies        QrPolicy[]
+  leaves            Leave[]
+  payrolls          Payroll[]
+  payrollPeriods    PayrollPeriod[]
+  payrollSummaries  PayrollSummary[]
+  financialYears    FinancialYear[]
+  statutoryRules    StatutoryRule[]
+  statutoryVersions StatutoryVersion[]
+  overtimeRules     OvertimeRule[]
+  bonusRules        BonusRule[]
+  incentiveRules    IncentiveRule[]
+  commissionRules   CommissionRule[]
+  allowanceRules    AllowanceRule[]
+  loanTypes         LoanType[]
+  loanPolicies      LoanPolicy[]
+  payslips          Payslip[]
+  payrollDocuments  PayrollDocument[]
+  salaryCertificates SalaryCertificate[]
+  costCenters       CostCenter[]
+  payrollReports    PayrollReport[]
+  bankTransferBatches BankTransferBatch[]
+  payrollExportRecords PayrollExportRecord[]
+  accountingExports AccountingExport[]
+  journalEntries    JournalEntry[]
+  payrollAnalyticsSnapshots PayrollAnalyticsSnapshot[]
+  payrollApprovals          PayrollApproval[]
+  payrollYears              PayrollYear[]
+  retroPayrolls             RetroPayroll[]
+  payrollArrears            PayrollArrear[]
+  expenses          Expense[]
+
+  @@index([status], map: "idx_companies_status")
+  @@map("companies")
+}
+
+/// Physical or logical office location with optional GPS geofence.
+model Branch {
+  id                   String       @id @default(uuid()) @db.Uuid
+  companyId            String       @map("company_id") @db.Uuid
+  name                 String       @db.VarChar(255)
+  code                 String       @db.VarChar(50)
+  managerUserId        String?      @map("manager_user_id") @db.Uuid
+  phone                String?      @db.VarChar(20)
+  email                String?      @db.VarChar(255)
+  address              Json         @default("{}")
+  latitude             Decimal?     @db.Decimal(10, 8)
+  longitude            Decimal?     @db.Decimal(11, 8)
+  geofenceRadiusMeters Int?         @map("geofence_radius_meters")
+  gpsAttendanceEnabled Boolean      @default(false) @map("gps_attendance_enabled")
+  allowOutsideLocation Boolean      @default(false) @map("allow_outside_location")
+  locationRequired     Boolean      @default(true) @map("location_required")
+  isHeadOffice         Boolean      @default(false) @map("is_head_office")
+  status               RecordStatus @default(active)
+  remarks              String?      @db.Text
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?      @map("created_by") @db.Uuid
+  updatedBy            String?      @map("updated_by") @db.Uuid
+  deletedAt            DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy            String?      @map("deleted_by") @db.Uuid
+  version              Int          @default(1)
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  manager     User?        @relation("BranchManager", fields: [managerUserId], references: [id], onDelete: SetNull)
+  departments Department[]
+  employees   Employee[]
+  employeeCodeSequences EmployeeCodeSequence[]
+  userRoles   UserRole[]
+  holidays    Holiday[]
+  geoFences   GeoFence[]
+  gpsAttendances GpsAttendance[]
+
+  @@unique([companyId, code], map: "uq_branches_company_code")
+  @@index([companyId], map: "idx_branches_company_id")
+  @@index([companyId, deletedAt], map: "idx_branches_company_deleted")
+  @@map("branches")
+}
+
+/// Organizational unit; supports hierarchy via parentDepartmentId.
+model Department {
+  id                 String       @id @default(uuid()) @db.Uuid
+  companyId          String       @map("company_id") @db.Uuid
+  branchId           String?      @map("branch_id") @db.Uuid
+  parentDepartmentId String?      @map("parent_department_id") @db.Uuid
+  headEmployeeId     String?      @map("head_employee_id") @db.Uuid
+  name               String       @db.VarChar(255)
+  code               String       @db.VarChar(50)
+  description        String?      @db.Text
+  status             RecordStatus @default(active)
+  remarks            String?      @db.Text
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?      @map("created_by") @db.Uuid
+  updatedBy          String?      @map("updated_by") @db.Uuid
+  deletedAt          DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy          String?      @map("deleted_by") @db.Uuid
+  version            Int          @default(1)
+
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch           Branch?       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  parentDepartment Department?   @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id], onDelete: Restrict)
+  childDepartments Department[]  @relation("DepartmentHierarchy")
+  headEmployee     Employee?     @relation("DepartmentHead", fields: [headEmployeeId], references: [id], onDelete: SetNull)
+  employees        Employee[]    @relation("EmployeeDepartment")
+  designations     Designation[]
+  recruitments     Recruitment[]
+
+  @@unique([companyId, code], map: "uq_departments_company_code")
+  @@index([companyId], map: "idx_departments_company_id")
+  @@index([branchId], map: "idx_departments_branch_id")
+  @@index([companyId, deletedAt], map: "idx_departments_company_deleted")
+  @@map("departments")
+}
+
+/// Job title / grade within company hierarchy.
+model Designation {
+  id           String       @id @default(uuid()) @db.Uuid
+  companyId    String       @map("company_id") @db.Uuid
+  departmentId String?      @map("department_id") @db.Uuid
+  name         String       @db.VarChar(255)
+  code         String       @db.VarChar(50)
+  level        Int          @default(1)
+  description  String?      @db.Text
+  status       RecordStatus @default(active)
+  remarks      String?      @db.Text
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy    String?      @map("created_by") @db.Uuid
+  updatedBy    String?      @map("updated_by") @db.Uuid
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy    String?      @map("deleted_by") @db.Uuid
+  version      Int          @default(1)
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  employees  Employee[]
+
+  @@unique([companyId, code], map: "uq_designations_company_code")
+  @@index([companyId], map: "idx_designations_company_id")
+  @@index([departmentId], map: "idx_designations_department_id")
+  @@map("designations")
+}
+
+/// Configurable HR policies (attendance, leave, payroll, etc.).
+model HRPolicy {
+  id          String           @id @default(uuid()) @db.Uuid
+  companyId   String           @map("company_id") @db.Uuid
+  category    HRPolicyCategory
+  name        String           @db.VarChar(255)
+  code        String           @db.VarChar(50)
+  description String?          @db.Text
+  rules       Json             @default("{}")
+  status      RecordStatus     @default(active)
+  remarks     String?          @db.Text
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?          @map("created_by") @db.Uuid
+  updatedBy   String?          @map("updated_by") @db.Uuid
+  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz
+  deletedBy   String?          @map("deleted_by") @db.Uuid
+  version     Int              @default(1)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code], map: "uq_hr_policies_company_code")
+  @@index([companyId, category], map: "idx_hr_policies_company_category")
+  @@map("hr_policies")
+}

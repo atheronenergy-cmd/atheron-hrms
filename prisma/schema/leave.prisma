@@ -1,0 +1,252 @@
+// =============================================================================
+// Leave Management — Enterprise
+// =============================================================================
+
+model LeaveType {
+  id                       String       @id @default(uuid()) @db.Uuid
+  companyId                String       @map("company_id") @db.Uuid
+  name                     String       @db.VarChar(100)
+  code                     String       @db.VarChar(20)
+  description              String?      @db.Text
+  isPaid                   Boolean      @default(true) @map("is_paid")
+  isCarryForward           Boolean      @default(false) @map("is_carry_forward")
+  maxCarryForwardDays      Decimal      @default(0) @map("max_carry_forward_days") @db.Decimal(5, 2)
+  maxPerMonth              Decimal?     @map("max_per_month") @db.Decimal(5, 2)
+  maxPerYear               Decimal?     @map("max_per_year") @db.Decimal(5, 2)
+  minDaysPerRequest        Decimal      @default(0.5) @map("min_days_per_request") @db.Decimal(5, 2)
+  maxDaysPerRequest        Decimal?     @map("max_days_per_request") @db.Decimal(5, 2)
+  halfDayAllowed           Boolean      @default(true) @map("half_day_allowed")
+  hourlyLeaveAllowed       Boolean      @default(false) @map("hourly_leave_allowed")
+  requiresAttachment       Boolean      @default(false) @map("requires_attachment")
+  medicalCertificateRequired Boolean    @default(false) @map("medical_certificate_required")
+  managerApprovalRequired  Boolean      @default(true) @map("manager_approval_required")
+  hrApprovalRequired       Boolean      @default(false) @map("hr_approval_required")
+  genderRestriction        Gender?
+  probationRestricted      Boolean      @default(false) @map("probation_restricted")
+  noticePeriodRestricted   Boolean      @default(false) @map("notice_period_restricted")
+  accrualType              String       @default("yearly") @map("accrual_type") @db.VarChar(20)
+  accrualRate              Decimal      @default(0) @map("accrual_rate") @db.Decimal(5, 2)
+  minDaysNotice            Int          @default(0) @map("min_days_notice")
+  maxConsecutiveDays       Int?         @map("max_consecutive_days")
+  status                   RecordStatus @default(active)
+  remarks                  String?      @db.Text
+  createdAt                DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy                String?      @map("created_by") @db.Uuid
+  updatedBy                String?      @map("updated_by") @db.Uuid
+  deletedAt                DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy                String?      @map("deleted_by") @db.Uuid
+  version                  Int          @default(1)
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  leaves         Leave[]
+  leaveBalances  LeaveBalance[]
+  leavePolicies  LeavePolicy[]
+  leaveAccruals  LeaveAccrual[]
+  leaveEncashments LeaveEncashment[]
+
+  @@unique([companyId, code], map: "uq_leave_types_company_code")
+  @@index([companyId], map: "idx_leave_types_company_id")
+  @@map("leave_types")
+}
+
+model LeavePolicy {
+  id                    String             @id @default(uuid()) @db.Uuid
+  companyId             String             @map("company_id") @db.Uuid
+  leaveTypeId           String?            @map("leave_type_id") @db.Uuid
+  name                  String             @db.VarChar(100)
+  accrualPeriod         LeaveAccrualPeriod @default(yearly) @map("accrual_period")
+  creditAmount          Decimal            @default(0) @map("credit_amount") @db.Decimal(5, 2)
+  allowCarryForward     Boolean            @default(false) @map("allow_carry_forward")
+  maxCarryForwardDays   Decimal            @default(0) @map("max_carry_forward_days") @db.Decimal(5, 2)
+  expiryMonths          Int?               @map("expiry_months") @db.SmallInt
+  allowNegativeBalance  Boolean            @default(false) @map("allow_negative_balance")
+  sandwichHolidayRule   Boolean            @default(false) @map("sandwich_holiday_rule")
+  excludeWeeklyOff      Boolean            @default(true) @map("exclude_weekly_off")
+  probationRule         Json               @default("{}") @map("probation_rule")
+  noticePeriodRule      Json               @default("{}") @map("notice_period_rule")
+  isDefault             Boolean            @default(false) @map("is_default")
+  status                RecordStatus       @default(active)
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy             String?            @map("created_by") @db.Uuid
+  updatedBy             String?            @map("updated_by") @db.Uuid
+  version               Int                @default(1)
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  leaveType LeaveType? @relation(fields: [leaveTypeId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, isDefault], map: "idx_leave_policies_company_default")
+  @@map("leave_policies")
+}
+
+model Leave {
+  id                 String           @id @default(uuid()) @db.Uuid
+  companyId          String           @map("company_id") @db.Uuid
+  employeeId         String           @map("employee_id") @db.Uuid
+  leaveTypeId        String           @map("leave_type_id") @db.Uuid
+  branchId           String?          @map("branch_id") @db.Uuid
+  departmentId       String?          @map("department_id") @db.Uuid
+  startDate          DateTime         @map("start_date") @db.Date
+  endDate            DateTime         @map("end_date") @db.Date
+  startTime          DateTime?        @map("start_time") @db.Time
+  endTime            DateTime?        @map("end_time") @db.Time
+  totalDays          Decimal          @map("total_days") @db.Decimal(5, 2)
+  totalHours         Decimal          @default(0) @map("total_hours") @db.Decimal(5, 2)
+  leaveUnit          LeaveUnit        @default(days) @map("leave_unit")
+  halfDayType        LeaveHalfDayType @default(none) @map("half_day_type")
+  reason             String?          @db.Text
+  status             LeaveStatus      @default(draft)
+  currentApprovalLevel Int            @default(0) @map("current_approval_level") @db.SmallInt
+  attachmentFileId   String?          @map("attachment_file_id") @db.Uuid
+  emergencyContact   Json             @default("{}") @map("emergency_contact")
+  delegateEmployeeId String?          @map("delegate_employee_id") @db.Uuid
+  cancellationReason String?          @map("cancellation_reason") @db.Text
+  cancelledAt        DateTime?        @map("cancelled_at") @db.Timestamptz
+  remarks            String?          @db.Text
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?          @map("created_by") @db.Uuid
+  updatedBy          String?          @map("updated_by") @db.Uuid
+  deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz
+  deletedBy          String?          @map("deleted_by") @db.Uuid
+  version            Int              @default(1)
+
+  employee         Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  leaveType        LeaveType         @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  delegateEmployee Employee?         @relation("LeaveDelegate", fields: [delegateEmployeeId], references: [id], onDelete: SetNull)
+  leaveApprovals   LeaveApproval[]
+  attachments      LeaveAttachment[]
+  history          LeaveHistory[]
+
+  @@index([employeeId], map: "idx_leaves_employee_id")
+  @@index([companyId, status], map: "idx_leaves_company_status")
+  @@index([branchId, startDate], map: "idx_leaves_branch_start")
+  @@index([departmentId, startDate], map: "idx_leaves_department_start")
+  @@index([startDate, endDate], map: "idx_leaves_date_range")
+  @@map("leaves")
+}
+
+model LeaveApproval {
+  id             String            @id @default(uuid()) @db.Uuid
+  companyId      String            @map("company_id") @db.Uuid
+  leaveId        String            @map("leave_id") @db.Uuid
+  approverUserId String?           @map("approver_user_id") @db.Uuid
+  approverRole   LeaveApprovalRole @map("approver_role")
+  level          Int               @default(1) @db.SmallInt
+  status         LeaveStatus       @default(pending)
+  comments       String?           @db.Text
+  actedAt        DateTime?         @map("acted_at") @db.Timestamptz
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  leave Leave @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+
+  @@index([leaveId, level], map: "idx_leave_approvals_leave_level")
+  @@index([companyId, status], map: "idx_leave_approvals_company_status")
+  @@map("leave_approvals")
+}
+
+model LeaveAttachment {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  leaveId   String   @map("leave_id") @db.Uuid
+  fileId    String   @map("file_id") @db.Uuid
+  fileName  String?  @map("file_name") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
+
+  leave Leave @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+
+  @@index([leaveId], map: "idx_leave_attachments_leave_id")
+  @@map("leave_attachments")
+}
+
+model LeaveHistory {
+  id          String      @id @default(uuid()) @db.Uuid
+  companyId   String      @map("company_id") @db.Uuid
+  leaveId     String      @map("leave_id") @db.Uuid
+  employeeId  String      @map("employee_id") @db.Uuid
+  action      String      @db.VarChar(50)
+  fromStatus  LeaveStatus? @map("from_status")
+  toStatus    LeaveStatus? @map("to_status")
+  actorUserId String?     @map("actor_user_id") @db.Uuid
+  metadata    Json        @default("{}")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  leave Leave @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+
+  @@index([leaveId, createdAt], map: "idx_leave_history_leave_created")
+  @@index([employeeId, createdAt], map: "idx_leave_history_employee_created")
+  @@map("leave_histories")
+}
+
+model LeaveEncashment {
+  id          String                @id @default(uuid()) @db.Uuid
+  companyId   String                @map("company_id") @db.Uuid
+  employeeId  String                @map("employee_id") @db.Uuid
+  leaveTypeId String                @map("leave_type_id") @db.Uuid
+  year        Int                   @db.SmallInt
+  days        Decimal               @db.Decimal(5, 2)
+  amount      Decimal               @default(0) @db.Decimal(12, 2)
+  status      LeaveEncashmentStatus @default(draft)
+  remarks     String?               @db.Text
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?               @map("created_by") @db.Uuid
+  version     Int                   @default(1)
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, year], map: "idx_leave_encashments_employee_year")
+  @@map("leave_encashments")
+}
+
+model LeaveAccrual {
+  id          String             @id @default(uuid()) @db.Uuid
+  companyId   String             @map("company_id") @db.Uuid
+  employeeId  String             @map("employee_id") @db.Uuid
+  leaveTypeId String             @map("leave_type_id") @db.Uuid
+  periodType  LeaveAccrualPeriod @map("period_type")
+  periodStart DateTime           @map("period_start") @db.Date
+  periodEnd   DateTime           @map("period_end") @db.Date
+  creditedDays Decimal           @map("credited_days") @db.Decimal(5, 2)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  createdBy   String?            @map("created_by") @db.Uuid
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, periodStart], map: "idx_leave_accruals_employee_period")
+  @@map("leave_accruals")
+}
+
+/// Leave balance per employee per leave type per year.
+model LeaveBalance {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  leaveTypeId     String   @map("leave_type_id") @db.Uuid
+  year            Int      @db.SmallInt
+  openingBalance  Decimal  @default(0) @map("opening_balance") @db.Decimal(5, 2)
+  credited        Decimal  @default(0) @db.Decimal(5, 2)
+  allocated       Decimal  @default(0) @db.Decimal(5, 2)
+  used            Decimal  @default(0) @db.Decimal(5, 2)
+  pending         Decimal  @default(0) @db.Decimal(5, 2)
+  rejected        Decimal  @default(0) @db.Decimal(5, 2)
+  expired         Decimal  @default(0) @db.Decimal(5, 2)
+  carriedForward  Decimal  @default(0) @map("carried_forward") @db.Decimal(5, 2)
+  closingBalance  Decimal  @default(0) @map("closing_balance") @db.Decimal(5, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version         Int      @default(1)
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, leaveTypeId, year], map: "uq_leave_balances_employee_type_year")
+  @@index([employeeId], map: "idx_leave_balances_employee_id")
+  @@index([companyId, year], map: "idx_leave_balances_company_year")
+  @@map("leave_balances")
+}

@@ -1,0 +1,334 @@
+// =============================================================================
+// Indian Statutory Payroll Engine — Configuration & Computation
+// =============================================================================
+
+enum StatutoryRuleType {
+  pf
+  esi
+  professional_tax
+  income_tax
+  employer_contribution
+
+  @@map("statutory_rule_type")
+}
+
+enum StatutoryVersionStatus {
+  draft
+  active
+  archived
+
+  @@map("statutory_version_status")
+}
+
+enum InvestmentDeclarationStatus {
+  draft
+  submitted
+  approved
+  rejected
+
+  @@map("investment_declaration_status")
+}
+
+/// Financial year for statutory rule versioning (e.g. FY2026-27).
+model FinancialYear {
+  id          String       @id @default(uuid()) @db.Uuid
+  companyId   String       @map("company_id") @db.Uuid
+  code        String       @db.VarChar(20)
+  label       String       @db.VarChar(100)
+  startDate   DateTime     @map("start_date") @db.Date
+  endDate     DateTime     @map("end_date") @db.Date
+  isCurrent   Boolean      @default(false) @map("is_current")
+  status      RecordStatus @default(active)
+  remarks     String?      @db.Text
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?      @map("created_by") @db.Uuid
+  updatedBy   String?      @map("updated_by") @db.Uuid
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy   String?      @map("deleted_by") @db.Uuid
+  version     Int          @default(1)
+
+  company                Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  statutoryVersions      StatutoryVersion[]
+  investmentDeclarations InvestmentDeclaration[]
+  taxComputations        TaxComputation[]
+  payrollYears           PayrollYear[]
+
+  @@unique([companyId, code], map: "uq_financial_years_company_code")
+  @@index([companyId, isCurrent], map: "idx_financial_years_company_current")
+  @@map("financial_years")
+}
+
+/// Statutory rule container (PF, ESI, PT, TDS).
+model StatutoryRule {
+  id          String            @id @default(uuid()) @db.Uuid
+  companyId   String            @map("company_id") @db.Uuid
+  ruleType    StatutoryRuleType @map("rule_type")
+  name        String            @db.VarChar(100)
+  code        String            @db.VarChar(50)
+  description String?           @db.Text
+  status      RecordStatus      @default(active)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?           @map("created_by") @db.Uuid
+  updatedBy   String?           @map("updated_by") @db.Uuid
+  deletedAt   DateTime?         @map("deleted_at") @db.Timestamptz
+  deletedBy   String?           @map("deleted_by") @db.Uuid
+  version     Int               @default(1)
+
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  versions  StatutoryVersion[]
+
+  @@unique([companyId, code], map: "uq_statutory_rules_company_code")
+  @@index([companyId, ruleType], map: "idx_statutory_rules_company_type")
+  @@map("statutory_rules")
+}
+
+/// Versioned statutory configuration bound to a financial year.
+model StatutoryVersion {
+  id              String                 @id @default(uuid()) @db.Uuid
+  companyId       String                 @map("company_id") @db.Uuid
+  statutoryRuleId String                 @map("statutory_rule_id") @db.Uuid
+  financialYearId String                 @map("financial_year_id") @db.Uuid
+  versionNumber   Int                    @default(1) @map("version_number")
+  effectiveFrom   DateTime               @map("effective_from") @db.Date
+  effectiveTo     DateTime?              @map("effective_to") @db.Date
+  status          StatutoryVersionStatus @default(draft)
+  remarks         String?                @db.Text
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?                @map("created_by") @db.Uuid
+  updatedBy       String?                @map("updated_by") @db.Uuid
+  deletedAt       DateTime?              @map("deleted_at") @db.Timestamptz
+  deletedBy       String?                @map("deleted_by") @db.Uuid
+  version         Int                    @default(1)
+
+  company         Company                      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  statutoryRule   StatutoryRule                @relation(fields: [statutoryRuleId], references: [id], onDelete: Cascade)
+  financialYear   FinancialYear                @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  pfConfig        PFConfiguration?
+  esiConfig       ESIConfiguration?
+  ptConfig        ProfessionalTaxConfiguration?
+  incomeTaxConfig IncomeTaxConfiguration?
+
+  @@unique([statutoryRuleId, financialYearId, versionNumber], map: "uq_statutory_versions_rule_fy_version")
+  @@index([companyId, status], map: "idx_statutory_versions_company_status")
+  @@map("statutory_versions")
+}
+
+model PFConfiguration {
+  id                       String   @id @default(uuid()) @db.Uuid
+  companyId                String   @map("company_id") @db.Uuid
+  statutoryVersionId       String   @unique @map("statutory_version_id") @db.Uuid
+  employeeContributionRate Decimal  @map("employee_contribution_rate") @db.Decimal(8, 4)
+  employerContributionRate Decimal @map("employer_contribution_rate") @db.Decimal(8, 4)
+  epsRate                  Decimal  @map("eps_rate") @db.Decimal(8, 4)
+  adminChargeRate          Decimal  @map("admin_charge_rate") @db.Decimal(8, 4)
+  edliRate                 Decimal  @default(0) @map("edli_rate") @db.Decimal(8, 4)
+  edliAdminRate            Decimal  @default(0) @map("edli_admin_rate") @db.Decimal(8, 4)
+  wageCeiling              Decimal  @map("wage_ceiling") @db.Decimal(15, 2)
+  vpfAllowed               Boolean  @default(true) @map("vpf_allowed")
+  exemptions               Json     @default("[]")
+  metadata                 Json     @default("{}")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  statutoryVersion StatutoryVersion @relation(fields: [statutoryVersionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId], map: "idx_pf_configurations_company")
+  @@map("pf_configurations")
+}
+
+model ESIConfiguration {
+  id                 String   @id @default(uuid()) @db.Uuid
+  companyId          String   @map("company_id") @db.Uuid
+  statutoryVersionId String   @unique @map("statutory_version_id") @db.Uuid
+  employeeRate       Decimal  @map("employee_rate") @db.Decimal(8, 4)
+  employerRate       Decimal  @map("employer_rate") @db.Decimal(8, 4)
+  eligibilityCeiling Decimal  @map("eligibility_ceiling") @db.Decimal(15, 2)
+  exemptions         Json     @default("[]")
+  metadata           Json     @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  statutoryVersion StatutoryVersion @relation(fields: [statutoryVersionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId], map: "idx_esi_configurations_company")
+  @@map("esi_configurations")
+}
+
+model ProfessionalTaxConfiguration {
+  id                 String   @id @default(uuid()) @db.Uuid
+  companyId          String   @map("company_id") @db.Uuid
+  statutoryVersionId String   @unique @map("statutory_version_id") @db.Uuid
+  stateCode          String   @map("state_code") @db.VarChar(10)
+  stateName          String   @map("state_name") @db.VarChar(100)
+  slabs              Json     @default("[]")
+  maxAmount          Decimal  @default(0) @map("max_amount") @db.Decimal(15, 2)
+  exemptions         Json     @default("[]")
+  metadata           Json     @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  statutoryVersion StatutoryVersion @relation(fields: [statutoryVersionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, stateCode], map: "idx_pt_configurations_company_state")
+  @@map("professional_tax_configurations")
+}
+
+model IncomeTaxConfiguration {
+  id                 String   @id @default(uuid()) @db.Uuid
+  companyId          String   @map("company_id") @db.Uuid
+  statutoryVersionId String   @unique @map("statutory_version_id") @db.Uuid
+  regime             String   @db.VarChar(20)
+  slabs              Json     @default("[]")
+  standardDeduction  Decimal  @default(0) @map("standard_deduction") @db.Decimal(15, 2)
+  rebateLimit        Decimal  @default(0) @map("rebate_limit") @db.Decimal(15, 2)
+  rebateAmount       Decimal  @default(0) @map("rebate_amount") @db.Decimal(15, 2)
+  surchargeSlabs     Json     @default("[]") @map("surcharge_slabs")
+  cessRate           Decimal  @default(0) @map("cess_rate") @db.Decimal(8, 4)
+  metadata           Json     @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  statutoryVersion StatutoryVersion @relation(fields: [statutoryVersionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, regime], map: "idx_income_tax_configurations_company_regime")
+  @@map("income_tax_configurations")
+}
+
+/// Payroll-facing statutory profile with enable flags and overrides.
+model EmployeeStatutoryProfile {
+  id                      String       @id @default(uuid()) @db.Uuid
+  companyId               String       @map("company_id") @db.Uuid
+  employeeId              String       @unique @map("employee_id") @db.Uuid
+  pfEnabled               Boolean      @default(true) @map("pf_enabled")
+  esiEnabled              Boolean      @default(false) @map("esi_enabled")
+  ptEnabled               Boolean      @default(false) @map("pt_enabled")
+  tdsEnabled              Boolean      @default(true) @map("tds_enabled")
+  taxRegime               String?      @map("tax_regime") @db.VarChar(20)
+  financialYearCode       String?      @map("financial_year_code") @db.VarChar(20)
+  vpfPercentage           Decimal?     @map("vpf_percentage") @db.Decimal(8, 4)
+  pfEmployeeRateOverride  Decimal?     @map("pf_employee_rate_override") @db.Decimal(8, 4)
+  pfEmployerRateOverride  Decimal?     @map("pf_employer_rate_override") @db.Decimal(8, 4)
+  esiEmployeeRateOverride Decimal?     @map("esi_employee_rate_override") @db.Decimal(8, 4)
+  esiEmployerRateOverride Decimal?     @map("esi_employer_rate_override") @db.Decimal(8, 4)
+  ptExempt                Boolean      @default(false) @map("pt_exempt")
+  exemptions              Json         @default("[]")
+  status                  RecordStatus @default(active)
+  createdAt               DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy               String?      @map("created_by") @db.Uuid
+  updatedBy               String?      @map("updated_by") @db.Uuid
+  version                 Int          @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId], map: "idx_employee_statutory_profiles_company")
+  @@map("employee_statutory_profiles")
+}
+
+/// Employee investment declaration for TDS computation.
+model InvestmentDeclaration {
+  id                 String                      @id @default(uuid()) @db.Uuid
+  companyId          String                      @map("company_id") @db.Uuid
+  employeeId         String                      @map("employee_id") @db.Uuid
+  financialYearId    String                      @map("financial_year_id") @db.Uuid
+  section80C         Decimal                     @default(0) @map("section_80c") @db.Decimal(15, 2)
+  section80D         Decimal                     @default(0) @map("section_80d") @db.Decimal(15, 2)
+  homeLoanInterest   Decimal                     @default(0) @map("home_loan_interest") @db.Decimal(15, 2)
+  nps                Decimal                     @default(0) @db.Decimal(15, 2)
+  educationLoan      Decimal                     @default(0) @map("education_loan") @db.Decimal(15, 2)
+  otherDeductions    Json                        @default("{}") @map("other_deductions")
+  proofDocuments     Json                        @default("[]") @map("proof_documents")
+  declarationStatus  InvestmentDeclarationStatus @default(draft) @map("declaration_status")
+  approvedBy         String?                     @map("approved_by") @db.Uuid
+  approvedAt         DateTime?                   @map("approved_at") @db.Timestamptz
+  remarks            String?                     @db.Text
+  createdAt          DateTime                    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                    @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?                     @map("created_by") @db.Uuid
+  updatedBy          String?                     @map("updated_by") @db.Uuid
+  deletedAt          DateTime?                   @map("deleted_at") @db.Timestamptz
+  version            Int                         @default(1)
+
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  financialYear FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, financialYearId], map: "uq_investment_declarations_employee_fy")
+  @@index([companyId, declarationStatus], map: "idx_investment_declarations_company_status")
+  @@map("investment_declarations")
+}
+
+/// Monthly TDS computation snapshot linked to payroll.
+model TaxComputation {
+  id                     String   @id @default(uuid()) @db.Uuid
+  companyId              String   @map("company_id") @db.Uuid
+  employeeId             String   @map("employee_id") @db.Uuid
+  payrollCalculationId   String?  @unique @map("payroll_calculation_id") @db.Uuid
+  financialYearId        String   @map("financial_year_id") @db.Uuid
+  periodMonth            Int      @map("period_month") @db.SmallInt
+  periodYear             Int      @map("period_year") @db.SmallInt
+  taxRegime              String   @map("tax_regime") @db.VarChar(20)
+  projectedAnnualIncome  Decimal  @map("projected_annual_income") @db.Decimal(15, 2)
+  taxableIncome          Decimal  @map("taxable_income") @db.Decimal(15, 2)
+  annualTax              Decimal  @map("annual_tax") @db.Decimal(15, 2)
+  monthlyTds             Decimal  @map("monthly_tds") @db.Decimal(15, 2)
+  standardDeduction      Decimal  @default(0) @map("standard_deduction") @db.Decimal(15, 2)
+  rebateApplied          Decimal  @default(0) @map("rebate_applied") @db.Decimal(15, 2)
+  surcharge              Decimal  @default(0) @db.Decimal(15, 2)
+  cess                   Decimal  @default(0) @db.Decimal(15, 2)
+  investmentDeductions   Json     @default("{}") @map("investment_deductions")
+  breakdown              Json     @default("{}")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  employee           Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  financialYear      FinancialYear      @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  payrollCalculation PayrollCalculation? @relation(fields: [payrollCalculationId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, periodYear, periodMonth], map: "idx_tax_computations_employee_period")
+  @@index([companyId, financialYearId], map: "idx_tax_computations_company_fy")
+  @@map("tax_computations")
+}
+
+/// Employer statutory contributions per payroll period.
+model EmployerContribution {
+  id                   String   @id @default(uuid()) @db.Uuid
+  companyId            String   @map("company_id") @db.Uuid
+  employeeId           String   @map("employee_id") @db.Uuid
+  payrollCalculationId String?  @unique @map("payroll_calculation_id") @db.Uuid
+  pfEmployer           Decimal  @default(0) @map("pf_employer") @db.Decimal(15, 2)
+  eps                  Decimal  @default(0) @db.Decimal(15, 2)
+  pfAdminCharges       Decimal  @default(0) @map("pf_admin_charges") @db.Decimal(15, 2)
+  edli                 Decimal  @default(0) @db.Decimal(15, 2)
+  esiEmployer          Decimal  @default(0) @map("esi_employer") @db.Decimal(15, 2)
+  bonusPlaceholder     Decimal  @default(0) @map("bonus_placeholder") @db.Decimal(15, 2)
+  gratuityPlaceholder  Decimal  @default(0) @map("gratuity_placeholder") @db.Decimal(15, 2)
+  otherContributions   Json     @default("{}") @map("other_contributions")
+  periodStart          DateTime @map("period_start") @db.Date
+  periodEnd            DateTime @map("period_end") @db.Date
+  metadata             Json     @default("{}")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  employee           Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  payrollCalculation PayrollCalculation? @relation(fields: [payrollCalculationId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, periodStart], map: "idx_employer_contributions_employee_period")
+  @@index([companyId], map: "idx_employer_contributions_company")
+  @@map("employer_contributions")
+}
+
+/// Audit trail for statutory configuration and calculations.
+model StatutoryAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([companyId, entityType, createdAt], map: "idx_statutory_audit_logs_company_entity")
+  @@map("statutory_audit_logs")
+}

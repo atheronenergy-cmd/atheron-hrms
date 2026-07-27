@@ -1,0 +1,119 @@
+// =============================================================================
+// Enterprise Security — 2FA, Devices, Policies, Events
+// =============================================================================
+
+/// Company-scoped security policy configuration.
+model SecurityPolicy {
+  id                     String   @id @default(uuid()) @db.Uuid
+  companyId              String?  @unique @map("company_id") @db.Uuid
+  requireTwoFactor       Boolean  @default(false) @map("require_two_factor")
+  passwordMinLength      Int      @default(12) @map("password_min_length") @db.SmallInt
+  passwordRequireUpper   Boolean  @default(true) @map("password_require_upper")
+  passwordRequireLower   Boolean  @default(true) @map("password_require_lower")
+  passwordRequireNumber  Boolean  @default(true) @map("password_require_number")
+  passwordRequireSpecial Boolean  @default(true) @map("password_require_special")
+  passwordExpiryDays     Int?     @map("password_expiry_days") @db.SmallInt
+  passwordHistoryCount   Int      @default(5) @map("password_history_count") @db.SmallInt
+  maxLoginAttempts       Int      @default(5) @map("max_login_attempts") @db.SmallInt
+  lockoutMinutes         Int      @default(15) @map("lockout_minutes") @db.SmallInt
+  sessionTimeoutMinutes  Int      @default(1440) @map("session_timeout_minutes") @db.SmallInt
+  maxConcurrentSessions  Int      @default(5) @map("max_concurrent_sessions") @db.SmallInt
+  ipAllowlist            Json     @default("[]") @map("ip_allowlist")
+  deviceRestrictions     Boolean  @default(false) @map("device_restrictions")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  updatedBy              String?  @map("updated_by") @db.Uuid
+  version                Int      @default(1)
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("security_policies")
+}
+
+/// Pending 2FA verification during login.
+model PendingTwoFactorAuth {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  token      String   @unique @db.VarChar(255)
+  rememberMe Boolean  @default(false) @map("remember_me")
+  expires    DateTime @db.Timestamptz
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_pending_2fa_user_id")
+  @@index([expires], map: "idx_pending_2fa_expires")
+  @@map("pending_two_factor_auth")
+}
+
+/// One-time recovery codes for 2FA (hashed).
+model UserRecoveryCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @map("code_hash") @db.VarChar(255)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_user_recovery_codes_user_id")
+  @@map("user_recovery_codes")
+}
+
+/// Known devices for a user.
+model UserDevice {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  fingerprint String   @db.VarChar(255)
+  deviceLabel String?  @map("device_label") @db.VarChar(255)
+  browser     String?  @db.VarChar(100)
+  os          String?  @db.VarChar(100)
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  location    String?  @db.VarChar(255)
+  isTrusted   Boolean  @default(false) @map("is_trusted")
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at") @db.Timestamptz
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@unique([userId, fingerprint], map: "uq_user_devices_user_fingerprint")
+  @@index([userId], map: "idx_user_devices_user_id")
+  @@map("user_devices")
+}
+
+/// Password history for reuse prevention.
+model PasswordHistory {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_password_history_user_created")
+  @@map("password_histories")
+}
+
+/// Security events for monitoring and dashboard.
+model SecurityEvent {
+  id        String              @id @default(uuid()) @db.Uuid
+  companyId String?             @map("company_id") @db.Uuid
+  userId    String?             @map("user_id") @db.Uuid
+  eventType String              @map("event_type") @db.VarChar(100)
+  severity  SecurityEventSeverity @default(info)
+  ipAddress String?             @map("ip_address") @db.VarChar(45)
+  userAgent String?             @map("user_agent") @db.Text
+  deviceId  String?             @map("device_id") @db.Uuid
+  metadata  Json                @default("{}")
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)], map: "idx_security_events_company_created")
+  @@index([userId], map: "idx_security_events_user_id")
+  @@index([eventType], map: "idx_security_events_event_type")
+  @@map("security_events")
+}

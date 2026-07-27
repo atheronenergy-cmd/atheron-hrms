@@ -1,0 +1,232 @@
+// =============================================================================
+// Notifications, Audit, Files, Settings
+// =============================================================================
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  companyId String           @map("company_id") @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      String           @db.VarChar(100)
+  channel   NotificationType @default(in_app)
+  title     String           @db.VarChar(255)
+  body      String           @db.Text
+  data      Json             @default("{}")
+  readAt    DateTime?        @map("read_at") @db.Timestamptz
+  sentAt    DateTime?        @map("sent_at") @db.Timestamptz
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt], map: "idx_notifications_user_read")
+  @@index([companyId], map: "idx_notifications_company_id")
+  @@map("notifications")
+}
+
+model Announcement {
+  id          String             @id @default(uuid()) @db.Uuid
+  companyId   String             @map("company_id") @db.Uuid
+  title       String             @db.VarChar(255)
+  content     String             @db.Text
+  status      AnnouncementStatus @default(draft)
+  publishedAt DateTime?          @map("published_at") @db.Timestamptz
+  expiresAt   DateTime?          @map("expires_at") @db.Timestamptz
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?            @map("created_by") @db.Uuid
+  version     Int                @default(1)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status], map: "idx_announcements_company_status")
+  @@map("announcements")
+}
+
+/// Immutable audit trail for sensitive operations.
+model AuditLog {
+  id         String      @id @default(uuid()) @db.Uuid
+  companyId  String?     @map("company_id") @db.Uuid
+  userId     String?     @map("user_id") @db.Uuid
+  action     AuditAction
+  entityType String      @map("entity_type") @db.VarChar(100)
+  entityId   String?     @map("entity_id") @db.Uuid
+  oldValues  Json?       @map("old_values")
+  newValues  Json?       @map("new_values")
+  ipAddress  String?     @map("ip_address") @db.VarChar(45)
+  userAgent  String?     @map("user_agent") @db.Text
+  requestId  String?     @map("request_id") @db.Uuid
+  metadata   Json        @default("{}")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)], map: "idx_audit_logs_company_created")
+  @@index([entityType, entityId], map: "idx_audit_logs_entity")
+  @@index([userId], map: "idx_audit_logs_user_id")
+  @@map("audit_logs")
+}
+
+/// General activity log for non-sensitive user actions.
+model ActivityLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String?  @map("company_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String?  @map("entity_type") @db.VarChar(100)
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)], map: "idx_activity_logs_company_created")
+  @@index([userId], map: "idx_activity_logs_user_id")
+  @@map("activity_logs")
+}
+
+/// Central file metadata store — binary stored via StorageProvider (FileMetadata layer).
+model File {
+  id                String       @id @default(uuid()) @db.Uuid
+  companyId         String       @map("company_id") @db.Uuid
+  storageKey        String       @map("storage_key") @db.VarChar(500)
+  thumbnailKey      String?      @map("thumbnail_key") @db.VarChar(500)
+  originalName      String       @map("original_name") @db.VarChar(255)
+  mimeType          String       @map("mime_type") @db.VarChar(100)
+  sizeBytes         BigInt       @map("size_bytes")
+  category          FileCategory
+  checksum          String?      @db.VarChar(64)
+  metadata          Json         @default("{}")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  createdBy         String?      @map("created_by") @db.Uuid
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy         String?      @map("deleted_by") @db.Uuid
+
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  documents         EmployeeDocument[]
+  accessLogs        DocumentAccessLog[]
+
+  @@index([companyId], map: "idx_files_company_id")
+  @@index([storageKey], map: "idx_files_storage_key")
+  @@index([companyId, category], map: "idx_files_company_category")
+  @@map("files")
+}
+
+/// Configurable document categories per company.
+model DocumentCategory {
+  id          String       @id @default(uuid()) @db.Uuid
+  companyId   String?      @map("company_id") @db.Uuid
+  code        String       @db.VarChar(50)
+  name        String       @db.VarChar(100)
+  description String?      @db.Text
+  isSystem    Boolean      @default(false) @map("is_system")
+  sortOrder   Int          @default(0) @map("sort_order") @db.SmallInt
+  status      RecordStatus @default(active)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  company   Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  documents EmployeeDocument[]
+
+  @@unique([companyId, code], map: "uq_document_categories_company_code")
+  @@index([companyId, status], map: "idx_document_categories_company_status")
+  @@map("document_categories")
+}
+
+/// Employee-linked document with verification workflow (EmployeeDocument).
+model EmployeeDocument {
+  id                 String                     @id @default(uuid()) @db.Uuid
+  companyId          String                     @map("company_id") @db.Uuid
+  employeeId         String                     @map("employee_id") @db.Uuid
+  fileId             String                     @map("file_id") @db.Uuid
+  categoryId         String?                    @map("category_id") @db.Uuid
+  documentType       String                     @map("document_type") @db.VarChar(100)
+  title              String                     @db.VarChar(255)
+  description        String?                    @db.Text
+  documentNumber     String?                    @map("document_number") @db.VarChar(100)
+  issueDate          DateTime?                  @map("issue_date") @db.Date
+  expiryDate         DateTime?                  @map("expiry_date") @db.Date
+  issuingAuthority   String?                    @map("issuing_authority") @db.VarChar(255)
+  verificationStatus DocumentVerificationStatus @default(pending_verification) @map("verification_status")
+  verified           Boolean                    @default(false)
+  verifiedBy         String?                    @map("verified_by") @db.Uuid
+  verifiedAt         DateTime?                  @map("verified_at") @db.Timestamptz
+  status             RecordStatus               @default(active)
+  remarks            String?                    @db.Text
+  createdAt          DateTime                   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                   @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?                    @map("created_by") @db.Uuid
+  updatedBy          String?                    @map("updated_by") @db.Uuid
+  deletedAt          DateTime?                  @map("deleted_at") @db.Timestamptz
+  deletedBy          String?                    @map("deleted_by") @db.Uuid
+  version            Int                        @default(1)
+
+  company      Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee     Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  file         File                   @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  category     DocumentCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  verifications DocumentVerification[]
+  accessLogs   DocumentAccessLog[]
+
+  @@index([employeeId], map: "idx_employee_documents_employee_id")
+  @@index([companyId, employeeId], map: "idx_employee_documents_company_employee")
+  @@index([documentType], map: "idx_employee_documents_type")
+  @@index([expiryDate], map: "idx_employee_documents_expiry")
+  @@index([verificationStatus], map: "idx_employee_documents_verification")
+  @@index([companyId, verificationStatus], map: "idx_employee_documents_company_status")
+  @@map("employee_documents")
+}
+
+/// Verification workflow history for employee documents.
+model DocumentVerification {
+  id         String                     @id @default(uuid()) @db.Uuid
+  documentId String                     @map("document_id") @db.Uuid
+  status     DocumentVerificationStatus
+  notes      String?                    @db.Text
+  reviewedBy String?                    @map("reviewed_by") @db.Uuid
+  reviewedAt DateTime                   @default(now()) @map("reviewed_at") @db.Timestamptz
+  createdAt  DateTime                   @default(now()) @map("created_at") @db.Timestamptz
+
+  document EmployeeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, reviewedAt], map: "idx_document_verifications_document_date")
+  @@map("document_verifications")
+}
+
+/// Access and download tracking for sensitive documents.
+model DocumentAccessLog {
+  id         String               @id @default(uuid()) @db.Uuid
+  documentId String?              @map("document_id") @db.Uuid
+  fileId     String               @map("file_id") @db.Uuid
+  userId     String?              @map("user_id") @db.Uuid
+  action     DocumentAccessAction
+  ipAddress  String?              @map("ip_address") @db.VarChar(45)
+  userAgent  String?              @map("user_agent") @db.Text
+  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz
+
+  document EmployeeDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  file     File                @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId, createdAt], map: "idx_document_access_logs_file_date")
+  @@index([documentId, action], map: "idx_document_access_logs_document_action")
+  @@map("document_access_logs")
+}
+
+/// Key-value settings for system and company scope.
+model Setting {
+  id        String       @id @default(uuid()) @db.Uuid
+  companyId String?      @map("company_id") @db.Uuid
+  scope     SettingScope
+  key       String       @db.VarChar(100)
+  value     Json
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  updatedBy String?      @map("updated_by") @db.Uuid
+  version   Int          @default(1)
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, scope, key], map: "uq_settings_company_scope_key")
+  @@index([scope], map: "idx_settings_scope")
+  @@map("settings")
+}

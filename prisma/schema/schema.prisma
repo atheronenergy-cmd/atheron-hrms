@@ -1,0 +1,21 @@
+// Atheron HRMS — Prisma Schema (Multi-file)
+// Architecture: docs/ARCHITECTURE.md Sections 6 & 7
+// UUIDs generated as v4 by DB; application layer may use UUID v7 on insert.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Tracks schema migration versions for operational visibility.
+model SchemaVersion {
+  id        String   @id @default(uuid()) @db.Uuid
+  version   String   @unique @db.VarChar(20)
+  appliedAt DateTime @default(now()) @map("applied_at") @db.Timestamptz
+
+  @@map("schema_versions")
+}

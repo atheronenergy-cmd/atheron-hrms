@@ -1,0 +1,216 @@
+// =============================================================================
+// Payroll Document Generation — Payslips, Certificates, Archives
+// =============================================================================
+
+model Payslip {
+  id                   String                @id @default(uuid()) @db.Uuid
+  companyId            String                @map("company_id") @db.Uuid
+  payrollId            String                @map("payroll_id") @db.Uuid
+  payrollCalculationId String                @unique @map("payroll_calculation_id") @db.Uuid
+  employeeId           String                @map("employee_id") @db.Uuid
+  documentNumber       String                @map("document_number") @db.VarChar(50)
+  payslipNumber        String                @map("payslip_number") @db.VarChar(50)
+  versionNumber        Int                   @default(1) @map("version_number")
+  payrollVersion       Int                   @default(1) @map("payroll_version")
+  status               PayslipDocumentStatus @default(draft)
+  grossSalary          Decimal               @default(0) @map("gross_salary") @db.Decimal(15, 2)
+  totalDeductions      Decimal               @default(0) @map("total_deductions") @db.Decimal(15, 2)
+  netSalary            Decimal               @default(0) @map("net_salary") @db.Decimal(15, 2)
+  workingDays          Decimal               @default(0) @map("working_days") @db.Decimal(5, 2)
+  paidDays             Decimal               @default(0) @map("paid_days") @db.Decimal(5, 2)
+  attendanceSummary    Json                  @default("{}") @map("attendance_summary")
+  leaveSummary         Json                  @default("{}") @map("leave_summary")
+  earnings             Json                  @default("[]")
+  deductions           Json                  @default("[]")
+  employerContributions Json                 @default("[]") @map("employer_contributions")
+  paymentMode          String?               @map("payment_mode") @db.VarChar(50)
+  pdfFileId            String?               @map("pdf_file_id") @db.Uuid
+  verificationHash     String?               @map("verification_hash") @db.VarChar(128)
+  passwordRule         PayslipPasswordRule   @default(employee_id_dob) @map("password_rule")
+  generatedAt          DateTime?             @map("generated_at") @db.Timestamptz
+  generatedBy          String?               @map("generated_by") @db.Uuid
+  metadata             Json                  @default("{}")
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  version              Int                   @default(1)
+
+  payroll            Payroll            @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  payrollCalculation PayrollCalculation @relation(fields: [payrollCalculationId], references: [id], onDelete: Cascade)
+  employee           Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  versions           PayslipVersion[]
+  distributions      DocumentDistribution[]
+  archives           PayrollArchive[]
+
+  @@unique([companyId, documentNumber], map: "uq_payslips_company_document_number")
+  @@unique([companyId, payslipNumber], map: "uq_payslips_company_payslip_number")
+  @@index([employeeId, generatedAt], map: "idx_payslips_employee_generated")
+  @@index([payrollId], map: "idx_payslips_payroll")
+  @@map("payslips")
+}
+
+model PayslipVersion {
+  id             String                @id @default(uuid()) @db.Uuid
+  companyId      String                @map("company_id") @db.Uuid
+  payslipId      String                @map("payslip_id") @db.Uuid
+  versionNumber  Int                   @map("version_number")
+  payrollVersion Int                   @map("payroll_version")
+  revisionReason String?               @map("revision_reason") @db.Text
+  pdfFileId      String?               @map("pdf_file_id") @db.Uuid
+  hash           String?               @db.VarChar(128)
+  passwordRule   PayslipPasswordRule   @default(employee_id_dob) @map("password_rule")
+  passwordHash   String?               @map("password_hash") @db.VarChar(128)
+  generatedAt    DateTime              @default(now()) @map("generated_at") @db.Timestamptz
+  generatedBy    String?               @map("generated_by") @db.Uuid
+  metadata       Json                  @default("{}")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz
+
+  payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@unique([payslipId, versionNumber], map: "uq_payslip_versions_payslip_number")
+  @@map("payslip_versions")
+}
+
+model PayrollDocument {
+  id             String                @id @default(uuid()) @db.Uuid
+  companyId      String                @map("company_id") @db.Uuid
+  payrollId      String?               @map("payroll_id") @db.Uuid
+  employeeId     String?               @map("employee_id") @db.Uuid
+  documentType   PayrollDocumentType   @map("document_type")
+  documentNumber String                @map("document_number") @db.VarChar(50)
+  title          String                @db.VarChar(200)
+  fileId         String?               @map("file_id") @db.Uuid
+  status         PayslipDocumentStatus @default(generated)
+  hash           String?               @db.VarChar(128)
+  versionNumber  Int                   @default(1) @map("version_number")
+  generatedAt    DateTime              @default(now()) @map("generated_at") @db.Timestamptz
+  generatedBy    String?               @map("generated_by") @db.Uuid
+  metadata       Json                  @default("{}")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+
+  payroll       Payroll?               @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+  employee      Employee?              @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  distributions DocumentDistribution[]
+  archives      PayrollArchive[]
+
+  @@unique([companyId, documentNumber], map: "uq_payroll_documents_company_number")
+  @@index([companyId, documentType], map: "idx_payroll_documents_company_type")
+  @@map("payroll_documents")
+}
+
+model SalaryCertificate {
+  id                  String                @id @default(uuid()) @db.Uuid
+  companyId           String                @map("company_id") @db.Uuid
+  employeeId          String                @map("employee_id") @db.Uuid
+  documentNumber      String                @map("document_number") @db.VarChar(50)
+  designation         String                @db.VarChar(100)
+  department          String                @db.VarChar(100)
+  joiningDate         DateTime              @map("joining_date") @db.Date
+  currentSalary       Decimal               @map("current_salary") @db.Decimal(15, 2)
+  grossSalary         Decimal               @map("gross_salary") @db.Decimal(15, 2)
+  issuedDate          DateTime              @map("issued_date") @db.Date
+  authorizedSignatory String                @map("authorized_signatory") @db.VarChar(150)
+  pdfFileId           String?               @map("pdf_file_id") @db.Uuid
+  verificationId      String?               @unique @map("verification_id") @db.Uuid
+  status              PayslipDocumentStatus @default(generated)
+  generatedAt         DateTime              @default(now()) @map("generated_at") @db.Timestamptz
+  generatedBy         String?               @map("generated_by") @db.Uuid
+  metadata            Json                  @default("{}")
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+
+  employee     Employee              @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  verification PayrollDocumentVerification? @relation(fields: [verificationId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, documentNumber], map: "uq_salary_certificates_company_number")
+  @@index([employeeId], map: "idx_salary_certificates_employee")
+  @@map("salary_certificates")
+}
+
+model PayrollArchive {
+  id            String               @id @default(uuid()) @db.Uuid
+  companyId     String               @map("company_id") @db.Uuid
+  payrollId     String?              @map("payroll_id") @db.Uuid
+  payslipId     String?              @map("payslip_id") @db.Uuid
+  documentId    String?              @map("document_id") @db.Uuid
+  archiveType   String               @map("archive_type") @db.VarChar(30)
+  fileId        String               @map("file_id") @db.Uuid
+  hash          String               @db.VarChar(128)
+  versionNumber Int                  @default(1) @map("version_number")
+  status        PayrollArchiveStatus @default(immutable)
+  archivedAt    DateTime             @default(now()) @map("archived_at") @db.Timestamptz
+  archivedBy    String?              @map("archived_by") @db.Uuid
+  metadata      Json                 @default("{}")
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz
+
+  payroll  Payroll?         @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+  payslip  Payslip?         @relation(fields: [payslipId], references: [id], onDelete: SetNull)
+  document PayrollDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, archivedAt], map: "idx_payroll_archives_company_archived")
+  @@map("payroll_archives")
+}
+
+model DocumentDistribution {
+  id                String                     @id @default(uuid()) @db.Uuid
+  companyId         String                     @map("company_id") @db.Uuid
+  payslipId         String?                    @map("payslip_id") @db.Uuid
+  payrollDocumentId String?                    @map("payroll_document_id") @db.Uuid
+  employeeId        String                     @map("employee_id") @db.Uuid
+  recipientEmail    String                     @map("recipient_email") @db.VarChar(255)
+  status            DocumentDistributionStatus @default(pending)
+  sentAt            DateTime?                  @map("sent_at") @db.Timestamptz
+  failedAt          DateTime?                  @map("failed_at") @db.Timestamptz
+  retryCount        Int                        @default(0) @map("retry_count")
+  errorMessage      String?                    @map("error_message") @db.Text
+  metadata          Json                       @default("{}")
+  createdAt         DateTime                   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime                   @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy         String?                    @map("created_by") @db.Uuid
+
+  payslip         Payslip?         @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  payrollDocument PayrollDocument? @relation(fields: [payrollDocumentId], references: [id], onDelete: Cascade)
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status], map: "idx_document_distributions_company_status")
+  @@index([employeeId], map: "idx_document_distributions_employee")
+  @@map("document_distributions")
+}
+
+model PayrollDocumentVerification {
+  id               String              @id @default(uuid()) @db.Uuid
+  companyId        String              @map("company_id") @db.Uuid
+  documentNumber   String              @map("document_number") @db.VarChar(50)
+  documentType     PayrollDocumentType @map("document_type")
+  entityType       String              @map("entity_type") @db.VarChar(50)
+  entityId         String              @map("entity_id") @db.Uuid
+  verificationHash String              @map("verification_hash") @db.VarChar(128)
+  qrCodeData       String              @map("qr_code_data") @db.Text
+  isValid          Boolean             @default(true) @map("is_valid")
+  verifiedAt       DateTime?           @map("verified_at") @db.Timestamptz
+  metadata         Json                @default("{}")
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  salaryCertificate SalaryCertificate?
+
+  @@unique([companyId, documentNumber], map: "uq_payroll_document_verifications_company_number")
+  @@unique([verificationHash], map: "uq_payroll_document_verifications_hash")
+  @@map("payroll_document_verifications")
+}
+
+model PayrollDocumentAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([companyId, entityType, createdAt], map: "idx_payroll_document_audit_company_entity")
+  @@map("payroll_document_audit_logs")
+}

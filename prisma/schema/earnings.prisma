@@ -1,0 +1,419 @@
+// =============================================================================
+// Enterprise Earnings Engine — OT, Bonus, Incentive, Commission, Allowance
+// =============================================================================
+
+model OvertimeRule {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  companyId          String                  @map("company_id") @db.Uuid
+  name               String                  @db.VarChar(100)
+  code               String                  @db.VarChar(50)
+  overtimeType       OvertimeType            @default(hourly) @map("overtime_type")
+  scope              EarningsRuleScope       @default(company)
+  branchId           String?                 @map("branch_id") @db.Uuid
+  departmentId       String?                 @map("department_id") @db.Uuid
+  designationId      String?                 @map("designation_id") @db.Uuid
+  employeeId         String?                 @map("employee_id") @db.Uuid
+  calculationMode    EarningsCalculationMode @default(fixed) @map("calculation_mode")
+  hourlyRate         Decimal?                @map("hourly_rate") @db.Decimal(15, 2)
+  multiplier         Decimal                 @default(1) @db.Decimal(8, 4)
+  minHours           Decimal?                @map("min_hours") @db.Decimal(8, 2)
+  maxHours           Decimal?                @map("max_hours") @db.Decimal(8, 2)
+  approvalRequired   Boolean                 @default(true) @map("approval_required")
+  autoCalculation    Boolean                 @default(true) @map("auto_calculation")
+  formulaExpression  String?                 @map("formula_expression") @db.Text
+  conditions         Json                    @default("{}")
+  effectiveFrom      DateTime                @map("effective_from") @db.Date
+  effectiveTo        DateTime?               @map("effective_to") @db.Date
+  versionNumber      Int                     @default(1) @map("version_number")
+  status             RecordStatus            @default(active)
+  remarks            String?                 @db.Text
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?                 @map("created_by") @db.Uuid
+  updatedBy          String?                 @map("updated_by") @db.Uuid
+  deletedAt          DateTime?               @map("deleted_at") @db.Timestamptz
+  version            Int                     @default(1)
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  records  OvertimeRecord[]
+
+  @@unique([companyId, code, versionNumber], map: "uq_overtime_rules_company_code_version")
+  @@index([companyId, scope], map: "idx_overtime_rules_company_scope")
+  @@map("overtime_rules")
+}
+
+model OvertimeRecord {
+  id                   String               @id @default(uuid()) @db.Uuid
+  companyId            String               @map("company_id") @db.Uuid
+  employeeId           String               @map("employee_id") @db.Uuid
+  overtimeRuleId       String?              @map("overtime_rule_id") @db.Uuid
+  payrollCalculationId String?              @unique @map("payroll_calculation_id") @db.Uuid
+  periodStart          DateTime             @map("period_start") @db.Date
+  periodEnd            DateTime             @map("period_end") @db.Date
+  overtimeType         OvertimeType         @default(hourly) @map("overtime_type")
+  normalHours          Decimal              @default(0) @map("normal_hours") @db.Decimal(8, 2)
+  otHours              Decimal              @default(0) @map("ot_hours") @db.Decimal(8, 2)
+  holidayOtHours       Decimal              @default(0) @map("holiday_ot_hours") @db.Decimal(8, 2)
+  nightOtHours         Decimal              @default(0) @map("night_ot_hours") @db.Decimal(8, 2)
+  hourlyRate           Decimal              @default(0) @map("hourly_rate") @db.Decimal(15, 2)
+  multiplier           Decimal              @default(1) @db.Decimal(8, 4)
+  amount               Decimal              @default(0) @db.Decimal(15, 2)
+  status               OvertimeRecordStatus @default(draft)
+  metadata             Json                 @default("{}")
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?              @map("created_by") @db.Uuid
+  updatedBy            String?              @map("updated_by") @db.Uuid
+  deletedAt            DateTime?            @map("deleted_at") @db.Timestamptz
+  version              Int                  @default(1)
+
+  employee           Employee            @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  overtimeRule       OvertimeRule?       @relation(fields: [overtimeRuleId], references: [id], onDelete: SetNull)
+  payrollCalculation PayrollCalculation? @relation(fields: [payrollCalculationId], references: [id], onDelete: SetNull)
+  approvals          OvertimeApproval[]
+
+  @@index([employeeId, periodStart], map: "idx_overtime_records_employee_period")
+  @@index([companyId, status], map: "idx_overtime_records_company_status")
+  @@map("overtime_records")
+}
+
+model OvertimeApproval {
+  id               String                 @id @default(uuid()) @db.Uuid
+  companyId        String                 @map("company_id") @db.Uuid
+  overtimeRecordId String                 @map("overtime_record_id") @db.Uuid
+  approvalLevel    String                 @map("approval_level") @db.VarChar(30)
+  status           EarningsApprovalStatus @default(submitted)
+  approverUserId   String?                @map("approver_user_id") @db.Uuid
+  approvedAt       DateTime?              @map("approved_at") @db.Timestamptz
+  remarks          String?                @db.Text
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz
+
+  overtimeRecord OvertimeRecord @relation(fields: [overtimeRecordId], references: [id], onDelete: Cascade)
+
+  @@index([overtimeRecordId], map: "idx_overtime_approvals_record")
+  @@map("overtime_approvals")
+}
+
+model BonusRule {
+  id                String                  @id @default(uuid()) @db.Uuid
+  companyId         String                  @map("company_id") @db.Uuid
+  name              String                  @db.VarChar(100)
+  code              String                  @db.VarChar(50)
+  bonusType         String                  @map("bonus_type") @db.VarChar(50)
+  scope             EarningsRuleScope       @default(company)
+  branchId          String?                 @map("branch_id") @db.Uuid
+  departmentId      String?                 @map("department_id") @db.Uuid
+  designationId     String?                 @map("designation_id") @db.Uuid
+  employeeId        String?                 @map("employee_id") @db.Uuid
+  calculationMode   EarningsCalculationMode @default(fixed) @map("calculation_mode")
+  amount            Decimal                 @default(0) @db.Decimal(15, 2)
+  percentageValue   Decimal?                @map("percentage_value") @db.Decimal(8, 4)
+  percentageOf      String?                 @map("percentage_of") @db.VarChar(50)
+  formulaExpression String?                 @map("formula_expression") @db.Text
+  conditions        Json                    @default("{}")
+  effectiveFrom     DateTime                @map("effective_from") @db.Date
+  effectiveTo       DateTime?               @map("effective_to") @db.Date
+  versionNumber     Int                     @default(1) @map("version_number")
+  status            RecordStatus            @default(active)
+  remarks           String?                 @db.Text
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy         String?                 @map("created_by") @db.Uuid
+  updatedBy         String?                 @map("updated_by") @db.Uuid
+  deletedAt         DateTime?               @map("deleted_at") @db.Timestamptz
+  version           Int                     @default(1)
+
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employeeBonuses EmployeeBonus[]
+
+  @@unique([companyId, code, versionNumber], map: "uq_bonus_rules_company_code_version")
+  @@map("bonus_rules")
+}
+
+model EmployeeBonus {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  companyId            String                 @map("company_id") @db.Uuid
+  employeeId           String                 @map("employee_id") @db.Uuid
+  bonusRuleId          String?                @map("bonus_rule_id") @db.Uuid
+  payrollCalculationId String?                @map("payroll_calculation_id") @db.Uuid
+  bonusType            String                 @map("bonus_type") @db.VarChar(50)
+  amount               Decimal                @db.Decimal(15, 2)
+  bonusDate            DateTime               @map("bonus_date") @db.Date
+  periodStart          DateTime?              @map("period_start") @db.Date
+  periodEnd            DateTime?              @map("period_end") @db.Date
+  status               EarningsApprovalStatus @default(draft)
+  approvedBy           String?                @map("approved_by") @db.Uuid
+  approvedAt           DateTime?              @map("approved_at") @db.Timestamptz
+  remarks              String?                @db.Text
+  metadata             Json                   @default("{}")
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?                @map("created_by") @db.Uuid
+  updatedBy            String?                @map("updated_by") @db.Uuid
+  deletedAt            DateTime?              @map("deleted_at") @db.Timestamptz
+  version              Int                    @default(1)
+
+  employee  Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  bonusRule BonusRule? @relation(fields: [bonusRuleId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, status], map: "idx_employee_bonuses_employee_status")
+  @@index([companyId, bonusDate], map: "idx_employee_bonuses_company_date")
+  @@map("employee_bonuses")
+}
+
+model IncentiveRule {
+  id                String                  @id @default(uuid()) @db.Uuid
+  companyId         String                  @map("company_id") @db.Uuid
+  name              String                  @db.VarChar(100)
+  code              String                  @db.VarChar(50)
+  incentiveType     String                  @map("incentive_type") @db.VarChar(50)
+  scope             EarningsRuleScope       @default(company)
+  branchId          String?                 @map("branch_id") @db.Uuid
+  departmentId      String?                 @map("department_id") @db.Uuid
+  designationId     String?                 @map("designation_id") @db.Uuid
+  employeeId        String?                 @map("employee_id") @db.Uuid
+  calculationMode   EarningsCalculationMode @default(fixed) @map("calculation_mode")
+  amount            Decimal                 @default(0) @db.Decimal(15, 2)
+  percentageValue   Decimal?                @map("percentage_value") @db.Decimal(8, 4)
+  percentageOf      String?                 @map("percentage_of") @db.VarChar(50)
+  targetValue       Decimal?                @map("target_value") @db.Decimal(15, 2)
+  formulaExpression String?                 @map("formula_expression") @db.Text
+  conditions        Json                    @default("{}")
+  effectiveFrom     DateTime                @map("effective_from") @db.Date
+  effectiveTo       DateTime?               @map("effective_to") @db.Date
+  versionNumber     Int                     @default(1) @map("version_number")
+  status            RecordStatus            @default(active)
+  remarks           String?                 @db.Text
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy         String?                 @map("created_by") @db.Uuid
+  updatedBy         String?                 @map("updated_by") @db.Uuid
+  deletedAt         DateTime?               @map("deleted_at") @db.Timestamptz
+  version           Int                     @default(1)
+
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employeeIncentives  EmployeeIncentive[]
+
+  @@unique([companyId, code, versionNumber], map: "uq_incentive_rules_company_code_version")
+  @@map("incentive_rules")
+}
+
+model EmployeeIncentive {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  companyId            String                 @map("company_id") @db.Uuid
+  employeeId           String                 @map("employee_id") @db.Uuid
+  incentiveRuleId      String?                @map("incentive_rule_id") @db.Uuid
+  payrollCalculationId String?                @map("payroll_calculation_id") @db.Uuid
+  incentiveType        String                 @map("incentive_type") @db.VarChar(50)
+  amount               Decimal                @db.Decimal(15, 2)
+  periodStart          DateTime               @map("period_start") @db.Date
+  periodEnd            DateTime               @map("period_end") @db.Date
+  status               EarningsApprovalStatus @default(draft)
+  approvedBy           String?                @map("approved_by") @db.Uuid
+  approvedAt           DateTime?              @map("approved_at") @db.Timestamptz
+  remarks              String?                @db.Text
+  metadata             Json                   @default("{}")
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?                @map("created_by") @db.Uuid
+  updatedBy            String?                @map("updated_by") @db.Uuid
+  deletedAt            DateTime?              @map("deleted_at") @db.Timestamptz
+  version              Int                    @default(1)
+
+  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  incentiveRule IncentiveRule? @relation(fields: [incentiveRuleId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, periodStart], map: "idx_employee_incentives_employee_period")
+  @@map("employee_incentives")
+}
+
+model CommissionRule {
+  id                String                  @id @default(uuid()) @db.Uuid
+  companyId         String                  @map("company_id") @db.Uuid
+  name              String                  @db.VarChar(100)
+  code              String                  @db.VarChar(50)
+  commissionType    String                  @map("commission_type") @db.VarChar(50)
+  scope             EarningsRuleScope       @default(company)
+  branchId          String?                 @map("branch_id") @db.Uuid
+  departmentId      String?                 @map("department_id") @db.Uuid
+  designationId     String?                 @map("designation_id") @db.Uuid
+  employeeId        String?                 @map("employee_id") @db.Uuid
+  calculationMode   EarningsCalculationMode @default(percentage) @map("calculation_mode")
+  amount            Decimal                 @default(0) @db.Decimal(15, 2)
+  percentageValue   Decimal?                @map("percentage_value") @db.Decimal(8, 4)
+  slabs             Json                    @default("[]")
+  targetValue       Decimal?                @map("target_value") @db.Decimal(15, 2)
+  formulaExpression String?                 @map("formula_expression") @db.Text
+  conditions        Json                    @default("{}")
+  effectiveFrom     DateTime                @map("effective_from") @db.Date
+  effectiveTo       DateTime?               @map("effective_to") @db.Date
+  versionNumber     Int                     @default(1) @map("version_number")
+  status            RecordStatus            @default(active)
+  remarks           String?                 @db.Text
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy         String?                 @map("created_by") @db.Uuid
+  updatedBy         String?                 @map("updated_by") @db.Uuid
+  deletedAt         DateTime?               @map("deleted_at") @db.Timestamptz
+  version           Int                     @default(1)
+
+  company              Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employeeCommissions  EmployeeCommission[]
+
+  @@unique([companyId, code, versionNumber], map: "uq_commission_rules_company_code_version")
+  @@map("commission_rules")
+}
+
+model EmployeeCommission {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  companyId            String                 @map("company_id") @db.Uuid
+  employeeId           String                 @map("employee_id") @db.Uuid
+  commissionRuleId     String?                @map("commission_rule_id") @db.Uuid
+  payrollCalculationId String?                @map("payroll_calculation_id") @db.Uuid
+  commissionType       String                 @map("commission_type") @db.VarChar(50)
+  salesAmount          Decimal                @default(0) @map("sales_amount") @db.Decimal(15, 2)
+  amount               Decimal                @db.Decimal(15, 2)
+  periodStart          DateTime               @map("period_start") @db.Date
+  periodEnd            DateTime               @map("period_end") @db.Date
+  status               EarningsApprovalStatus @default(draft)
+  approvedBy           String?                @map("approved_by") @db.Uuid
+  approvedAt           DateTime?              @map("approved_at") @db.Timestamptz
+  remarks              String?                @db.Text
+  metadata             Json                   @default("{}")
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?                @map("created_by") @db.Uuid
+  updatedBy            String?                @map("updated_by") @db.Uuid
+  deletedAt            DateTime?              @map("deleted_at") @db.Timestamptz
+  version              Int                    @default(1)
+
+  employee       Employee        @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  commissionRule CommissionRule? @relation(fields: [commissionRuleId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, periodStart], map: "idx_employee_commissions_employee_period")
+  @@map("employee_commissions")
+}
+
+model AllowanceRule {
+  id                String                  @id @default(uuid()) @db.Uuid
+  companyId         String                  @map("company_id") @db.Uuid
+  name              String                  @db.VarChar(100)
+  code              String                  @db.VarChar(50)
+  allowanceType     String                  @map("allowance_type") @db.VarChar(50)
+  scope             EarningsRuleScope       @default(company)
+  branchId          String?                 @map("branch_id") @db.Uuid
+  departmentId      String?                 @map("department_id") @db.Uuid
+  designationId     String?                 @map("designation_id") @db.Uuid
+  employeeId        String?                 @map("employee_id") @db.Uuid
+  calculationMode   EarningsCalculationMode @default(fixed) @map("calculation_mode")
+  amount            Decimal                 @default(0) @db.Decimal(15, 2)
+  percentageValue   Decimal?                @map("percentage_value") @db.Decimal(8, 4)
+  percentageOf      String?                 @map("percentage_of") @db.VarChar(50)
+  formulaExpression String?                 @map("formula_expression") @db.Text
+  conditions        Json                    @default("{}")
+  effectiveFrom     DateTime                @map("effective_from") @db.Date
+  effectiveTo       DateTime?               @map("effective_to") @db.Date
+  versionNumber     Int                     @default(1) @map("version_number")
+  status            RecordStatus            @default(active)
+  remarks           String?                 @db.Text
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy         String?                 @map("created_by") @db.Uuid
+  updatedBy         String?                 @map("updated_by") @db.Uuid
+  deletedAt         DateTime?               @map("deleted_at") @db.Timestamptz
+  version           Int                     @default(1)
+
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employeeAllowances EmployeeAllowance[]
+
+  @@unique([companyId, code, versionNumber], map: "uq_allowance_rules_company_code_version")
+  @@map("allowance_rules")
+}
+
+model EmployeeAllowance {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  companyId            String                 @map("company_id") @db.Uuid
+  employeeId           String                 @map("employee_id") @db.Uuid
+  allowanceRuleId      String?                @map("allowance_rule_id") @db.Uuid
+  payrollCalculationId String?                @map("payroll_calculation_id") @db.Uuid
+  allowanceType        String                 @map("allowance_type") @db.VarChar(50)
+  amount               Decimal                @db.Decimal(15, 2)
+  periodStart          DateTime               @map("period_start") @db.Date
+  periodEnd            DateTime               @map("period_end") @db.Date
+  status               EarningsApprovalStatus @default(approved)
+  approvedBy           String?                @map("approved_by") @db.Uuid
+  approvedAt           DateTime?              @map("approved_at") @db.Timestamptz
+  remarks              String?                @db.Text
+  metadata             Json                   @default("{}")
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?                @map("created_by") @db.Uuid
+  updatedBy            String?                @map("updated_by") @db.Uuid
+  deletedAt            DateTime?              @map("deleted_at") @db.Timestamptz
+  version              Int                    @default(1)
+
+  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  allowanceRule AllowanceRule? @relation(fields: [allowanceRuleId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, periodStart], map: "idx_employee_allowances_employee_period")
+  @@map("employee_allowances")
+}
+
+model ProductionMetric {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  metricDate      DateTime @map("metric_date") @db.Date
+  kpiCode         String   @map("kpi_code") @db.VarChar(50)
+  kpiName         String   @map("kpi_name") @db.VarChar(100)
+  targetValue     Decimal  @default(0) @map("target_value") @db.Decimal(15, 2)
+  actualValue     Decimal  @default(0) @map("actual_value") @db.Decimal(15, 2)
+  qualityScore    Decimal? @map("quality_score") @db.Decimal(8, 4)
+  rejectPercent   Decimal? @map("reject_percent") @db.Decimal(8, 4)
+  efficiencyScore Decimal? @map("efficiency_score") @db.Decimal(8, 4)
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?  @map("created_by") @db.Uuid
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, metricDate], map: "idx_production_metrics_employee_date")
+  @@index([companyId, kpiCode], map: "idx_production_metrics_company_kpi")
+  @@map("production_metrics")
+}
+
+model PerformanceMetric {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  metricDate      DateTime @map("metric_date") @db.Date
+  metricCode      String   @map("metric_code") @db.VarChar(50)
+  metricName      String   @map("metric_name") @db.VarChar(100)
+  score           Decimal  @default(0) @db.Decimal(8, 4)
+  targetScore     Decimal? @map("target_score") @db.Decimal(8, 4)
+  rewardAmount    Decimal  @default(0) @map("reward_amount") @db.Decimal(15, 2)
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?  @map("created_by") @db.Uuid
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, metricDate], map: "idx_performance_metrics_employee_date")
+  @@map("performance_metrics")
+}
+
+model EarningsAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([companyId, entityType, createdAt], map: "idx_earnings_audit_logs_company_entity")
+  @@map("earnings_audit_logs")
+}

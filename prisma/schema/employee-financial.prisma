@@ -1,0 +1,244 @@
+// =============================================================================
+// Employee Financial, Family & Statutory Information
+// =============================================================================
+
+enum BankAccountType {
+  savings
+  current
+
+  @@map("bank_account_type")
+}
+
+enum BankVerificationStatus {
+  pending
+  verified
+  rejected
+
+  @@map("bank_verification_status")
+}
+
+enum InsurancePolicyStatus {
+  active
+  inactive
+  expired
+  cancelled
+
+  @@map("insurance_policy_status")
+}
+
+/// Employee bank account for salary disbursement.
+model EmployeeBankDetail {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  companyId          String                 @map("company_id") @db.Uuid
+  employeeId         String                 @map("employee_id") @db.Uuid
+  accountHolderName  String                 @map("account_holder_name") @db.VarChar(200)
+  bankName           String                 @map("bank_name") @db.VarChar(200)
+  branchName         String?                @map("branch_name") @db.VarChar(200)
+  accountNumberEnc   String                 @map("account_number_enc") @db.Text
+  ifscCode           String                 @map("ifsc_code") @db.VarChar(20)
+  accountType        BankAccountType        @default(savings) @map("account_type")
+  upiIdEnc           String?                @map("upi_id_enc") @db.Text
+  chequeFileId       String?                @map("cheque_file_id") @db.Uuid
+  verificationStatus BankVerificationStatus @default(pending) @map("verification_status")
+  verifiedBy         String?                @map("verified_by") @db.Uuid
+  verifiedAt         DateTime?              @map("verified_at") @db.Timestamptz
+  isPrimary          Boolean                @default(true) @map("is_primary")
+  status             RecordStatus           @default(active)
+  remarks            String?                @db.Text
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?                @map("created_by") @db.Uuid
+  updatedBy          String?                @map("updated_by") @db.Uuid
+  deletedAt          DateTime?              @map("deleted_at") @db.Timestamptz
+  deletedBy          String?                @map("deleted_by") @db.Uuid
+  version            Int                    @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_bank_details_employee")
+  @@index([companyId, employeeId], map: "idx_employee_bank_details_company_employee")
+  @@index([verificationStatus], map: "idx_employee_bank_details_verification")
+  @@map("employee_bank_details")
+}
+
+/// Emergency contact records (multiple per employee).
+model EmployeeEmergencyContact {
+  id         String       @id @default(uuid()) @db.Uuid
+  companyId  String       @map("company_id") @db.Uuid
+  employeeId String       @map("employee_id") @db.Uuid
+  name       String       @db.VarChar(200)
+  relation   String       @db.VarChar(100)
+  mobileEnc  String       @map("mobile_enc") @db.Text
+  email      String?      @db.VarChar(255)
+  address    Json         @default("{}")
+  priority   Int          @default(1) @db.SmallInt
+  isPrimary  Boolean      @default(false) @map("is_primary")
+  status     RecordStatus @default(active)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy  String?      @map("created_by") @db.Uuid
+  updatedBy  String?      @map("updated_by") @db.Uuid
+  deletedAt  DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy  String?      @map("deleted_by") @db.Uuid
+  version    Int          @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_emergency_contacts_employee")
+  @@index([companyId, employeeId], map: "idx_employee_emergency_contacts_company")
+  @@map("employee_emergency_contacts")
+}
+
+/// Family member records.
+model EmployeeFamilyMember {
+  id              String       @id @default(uuid()) @db.Uuid
+  companyId       String       @map("company_id") @db.Uuid
+  employeeId      String       @map("employee_id") @db.Uuid
+  name            String       @db.VarChar(200)
+  relation        String       @db.VarChar(100)
+  dateOfBirth     DateTime?    @map("date_of_birth") @db.Date
+  gender          Gender?
+  occupation      String?      @db.VarChar(200)
+  isDependent     Boolean      @default(false) @map("is_dependent")
+  dependentSince  DateTime?    @map("dependent_since") @db.Date
+  status          RecordStatus @default(active)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?      @map("created_by") @db.Uuid
+  updatedBy       String?      @map("updated_by") @db.Uuid
+  deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy       String?      @map("deleted_by") @db.Uuid
+  version         Int          @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_family_members_employee")
+  @@index([companyId, employeeId], map: "idx_employee_family_members_company")
+  @@map("employee_family_members")
+}
+
+/// Nominee records with percentage allocation.
+model EmployeeNominee {
+  id           String       @id @default(uuid()) @db.Uuid
+  companyId    String       @map("company_id") @db.Uuid
+  employeeId   String       @map("employee_id") @db.Uuid
+  name         String       @db.VarChar(200)
+  relation     String       @db.VarChar(100)
+  dateOfBirth  DateTime?    @map("date_of_birth") @db.Date
+  address      Json         @default("{}")
+  mobileEnc    String?      @map("mobile_enc") @db.Text
+  percentage   Decimal      @db.Decimal(5, 2)
+  nomineeType  String       @map("nominee_type") @db.VarChar(100)
+  status       RecordStatus @default(active)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy    String?      @map("created_by") @db.Uuid
+  updatedBy    String?      @map("updated_by") @db.Uuid
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz
+  deletedBy    String?      @map("deleted_by") @db.Uuid
+  version      Int          @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_nominees_employee")
+  @@index([companyId, employeeId], map: "idx_employee_nominees_company")
+  @@map("employee_nominees")
+}
+
+/// PF / ESI / statutory compliance profile (one per employee).
+model EmployeeStatutoryDetail {
+  id                   String       @id @default(uuid()) @db.Uuid
+  companyId            String       @map("company_id") @db.Uuid
+  employeeId           String       @unique @map("employee_id") @db.Uuid
+  pfNumberEnc          String?      @map("pf_number_enc") @db.Text
+  uanNumberEnc         String?      @map("uan_number_enc") @db.Text
+  esiNumberEnc         String?      @map("esi_number_enc") @db.Text
+  esiEligible          Boolean      @default(false) @map("esi_eligible")
+  pfJoiningDate        DateTime?    @map("pf_joining_date") @db.Date
+  pfContributionType   String?      @map("pf_contribution_type") @db.VarChar(50)
+  professionalTaxApplicable Boolean @default(false) @map("professional_tax_applicable")
+  lwfApplicable        Boolean      @default(false) @map("lwf_applicable")
+  status               RecordStatus @default(active)
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?      @map("created_by") @db.Uuid
+  updatedBy            String?      @map("updated_by") @db.Uuid
+  version              Int          @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId], map: "idx_employee_statutory_details_company")
+  @@map("employee_statutory_details")
+}
+
+/// Income tax profile (one per employee).
+model EmployeeTaxProfile {
+  id                    String       @id @default(uuid()) @db.Uuid
+  companyId             String       @map("company_id") @db.Uuid
+  employeeId            String       @unique @map("employee_id") @db.Uuid
+  panNumberEnc          String?      @map("pan_number_enc") @db.Text
+  taxRegime             String?      @map("tax_regime") @db.VarChar(30)
+  financialYear         String?      @map("financial_year") @db.VarChar(10)
+  taxDeclaration        Json         @default("{}") @map("tax_declaration")
+  investmentDeclaration Json         @default("{}") @map("investment_declaration")
+  previousEmployer      Json         @default("{}") @map("previous_employer")
+  status                RecordStatus @default(active)
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy             String?      @map("created_by") @db.Uuid
+  updatedBy             String?      @map("updated_by") @db.Uuid
+  version               Int          @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId], map: "idx_employee_tax_profiles_company")
+  @@map("employee_tax_profiles")
+}
+
+/// Employee insurance policies.
+model EmployeeInsurance {
+  id              String                @id @default(uuid()) @db.Uuid
+  companyId       String                @map("company_id") @db.Uuid
+  employeeId      String                @map("employee_id") @db.Uuid
+  provider        String                @db.VarChar(200)
+  policyNumberEnc String                @map("policy_number_enc") @db.Text
+  coverageAmount  Decimal?              @map("coverage_amount") @db.Decimal(14, 2)
+  startDate       DateTime?             @map("start_date") @db.Date
+  endDate         DateTime?             @map("end_date") @db.Date
+  nomineeName     String?               @map("nominee_name") @db.VarChar(200)
+  policyStatus    InsurancePolicyStatus @default(active) @map("policy_status")
+  status          RecordStatus          @default(active)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?               @map("created_by") @db.Uuid
+  updatedBy       String?               @map("updated_by") @db.Uuid
+  deletedAt       DateTime?             @map("deleted_at") @db.Timestamptz
+  deletedBy       String?               @map("deleted_by") @db.Uuid
+  version         Int                   @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_insurance_employee")
+  @@index([companyId, employeeId], map: "idx_employee_insurance_company")
+  @@index([policyStatus], map: "idx_employee_insurance_status")
+  @@map("employee_insurance")
+}
+
+/// Audit log for sensitive financial data access.
+model EmployeeFinancialAccessLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String?  @map("entity_id") @db.Uuid
+  action     String   @db.VarChar(50)
+  fieldName  String?  @map("field_name") @db.VarChar(100)
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([employeeId, createdAt], map: "idx_employee_financial_access_employee")
+  @@index([companyId, entityType], map: "idx_employee_financial_access_company")
+  @@map("employee_financial_access_logs")
+}

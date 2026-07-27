@@ -1,0 +1,561 @@
+// =============================================================================
+// Attendance & Shift
+// =============================================================================
+
+model Shift {
+  id                   String       @id @default(uuid()) @db.Uuid
+  companyId            String       @map("company_id") @db.Uuid
+  name                 String       @db.VarChar(100)
+  code                 String       @db.VarChar(50)
+  shiftType            ShiftType    @default(fixed) @map("shift_type")
+  startTime            DateTime     @map("start_time") @db.Time
+  endTime              DateTime     @map("end_time") @db.Time
+  breakDurationMinutes Int          @default(0) @map("break_duration_minutes")
+  isOvernight          Boolean      @default(false) @map("is_overnight")
+  workingDays          Json         @default("[1,2,3,4,5]") @map("working_days")
+  status               RecordStatus @default(active)
+  remarks              String?      @db.Text
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?      @map("created_by") @db.Uuid
+  updatedBy            String?      @map("updated_by") @db.Uuid
+  deletedAt            DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy            String?      @map("deleted_by") @db.Uuid
+  version              Int          @default(1)
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  shiftAssignments ShiftAssignment[]
+  attendances      Attendance[]
+
+  @@unique([companyId, code], map: "uq_shifts_company_code")
+  @@index([companyId], map: "idx_shifts_company_id")
+  @@map("shifts")
+}
+
+model ShiftAssignment {
+  id            String    @id @default(uuid()) @db.Uuid
+  employeeId    String    @map("employee_id") @db.Uuid
+  shiftId       String    @map("shift_id") @db.Uuid
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+  remarks       String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy     String?   @map("created_by") @db.Uuid
+  updatedBy     String?   @map("updated_by") @db.Uuid
+  version       Int       @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift    @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId], map: "idx_shift_assignments_employee_id")
+  @@index([shiftId], map: "idx_shift_assignments_shift_id")
+  @@map("shift_assignments")
+}
+
+/// Daily attendance summary per employee.
+model Attendance {
+  id               String            @id @default(uuid()) @db.Uuid
+  companyId        String            @map("company_id") @db.Uuid
+  employeeId       String            @map("employee_id") @db.Uuid
+  shiftId          String?           @map("shift_id") @db.Uuid
+  date             DateTime          @db.Date
+  checkInAt        DateTime?         @map("check_in_at") @db.Timestamptz
+  checkOutAt       DateTime?         @map("check_out_at") @db.Timestamptz
+  checkInMethod    AttendanceMethod? @map("check_in_method")
+  checkOutMethod   AttendanceMethod? @map("check_out_method")
+  checkInLocation  Json?             @map("check_in_location")
+  checkOutLocation Json?             @map("check_out_location")
+  totalWorkMinutes      Int               @default(0) @map("total_work_minutes")
+  effectiveWorkMinutes  Int               @default(0) @map("effective_work_minutes")
+  breakMinutes          Int               @default(0) @map("break_minutes")
+  lateMinutes           Int               @default(0) @map("late_minutes")
+  earlyLeavingMinutes   Int               @default(0) @map("early_leaving_minutes")
+  overtimeMinutes       Int               @default(0) @map("overtime_minutes")
+  branchId              String?           @map("branch_id") @db.Uuid
+  departmentId          String?           @map("department_id") @db.Uuid
+  approvalStatus        AttendanceApprovalStatus @default(pending) @map("approval_status")
+  status           AttendanceStatus  @default(absent)
+  isRegularized    Boolean           @default(false) @map("is_regularized")
+  sourceDeviceId   String?           @map("source_device_id") @db.VarChar(100)
+  syncStatus       SyncStatus        @default(synced) @map("sync_status")
+  remarks          String?           @db.Text
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy        String?           @map("created_by") @db.Uuid
+  updatedBy        String?           @map("updated_by") @db.Uuid
+  deletedAt        DateTime?         @map("deleted_at") @db.Timestamptz
+  deletedBy        String?           @map("deleted_by") @db.Uuid
+  version          Int               @default(1)
+
+  employee       Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  shift          Shift?          @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  attendanceLogs AttendanceLog[]
+  gpsAttendances GpsAttendance[]
+  qrAttendances  QrAttendance[]
+  faceAttendance FaceAttendance?
+  corrections    AttendanceCorrection[]
+  summaries      AttendanceSummary[]
+
+  @@unique([employeeId, date], map: "uq_attendance_employee_date")
+  @@index([companyId, date], map: "idx_attendance_company_date")
+  @@index([employeeId, date], map: "idx_attendance_employee_date")
+  @@index([companyId, status], map: "idx_attendance_company_status")
+  @@index([branchId, date], map: "idx_attendance_branch_date")
+  @@index([departmentId, date], map: "idx_attendance_department_date")
+  @@index([companyId, approvalStatus], map: "idx_attendance_company_approval")
+  @@map("attendances")
+}
+
+/// Raw punch event log — supports offline sync.
+model AttendanceLog {
+  id           String           @id @default(uuid()) @db.Uuid
+  companyId    String           @map("company_id") @db.Uuid
+  employeeId   String           @map("employee_id") @db.Uuid
+  attendanceId String?          @map("attendance_id") @db.Uuid
+  punchedAt    DateTime         @map("punched_at") @db.Timestamptz
+  punchType    PunchType        @map("punch_type")
+  method       AttendanceMethod
+  location     Json?
+  deviceInfo   Json?            @map("device_info")
+  photoFileId  String?          @map("photo_file_id") @db.Uuid
+  rawPayload   Json?            @map("raw_payload")
+  syncStatus   SyncStatus       @default(synced) @map("sync_status")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  attendance Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, punchedAt], map: "idx_attendance_logs_employee_punched")
+  @@index([companyId, punchedAt], map: "idx_attendance_logs_company_punched")
+  @@map("attendance_logs")
+}
+
+/// Branch geo-fence zone — supports multiple zones per branch.
+model GeoFence {
+  id           String       @id @default(uuid()) @db.Uuid
+  companyId    String       @map("company_id") @db.Uuid
+  branchId     String       @map("branch_id") @db.Uuid
+  name         String       @db.VarChar(100)
+  latitude     Decimal      @db.Decimal(10, 8)
+  longitude    Decimal      @db.Decimal(11, 8)
+  radiusMeters Int          @map("radius_meters")
+  isDefault    Boolean      @default(false) @map("is_default")
+  status       RecordStatus @default(active)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy    String?      @map("created_by") @db.Uuid
+  updatedBy    String?      @map("updated_by") @db.Uuid
+  version      Int          @default(1)
+
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  gpsAttendances GpsAttendance[]
+
+  @@index([branchId], map: "idx_geo_fences_branch_id")
+  @@index([companyId], map: "idx_geo_fences_company_id")
+  @@map("geo_fences")
+}
+
+/// GPS-specific attendance capture metadata — one row per GPS punch event.
+model GpsAttendance {
+  id                       String                   @id @default(uuid()) @db.Uuid
+  companyId                String                   @map("company_id") @db.Uuid
+  employeeId               String                   @map("employee_id") @db.Uuid
+  attendanceId             String                   @map("attendance_id") @db.Uuid
+  branchId                 String?                  @map("branch_id") @db.Uuid
+  geoFenceId               String?                  @map("geo_fence_id") @db.Uuid
+  activityType             GpsActivityType          @map("activity_type")
+  latitude                 Decimal                  @db.Decimal(10, 8)
+  longitude                Decimal                  @db.Decimal(11, 8)
+  accuracy                 Decimal?                 @db.Decimal(8, 2)
+  altitude                 Decimal?                 @db.Decimal(8, 2)
+  address                  String?                  @db.Text
+  capturedAt               DateTime                 @map("captured_at") @db.Timestamptz
+  validationStatus         LocationValidationStatus @map("validation_status")
+  distanceFromOfficeMeters Int?                     @map("distance_from_office_meters")
+  isWithinGeofence         Boolean                  @default(false) @map("is_within_geofence")
+  deviceInfo               Json?                    @map("device_info")
+  ipAddress                String?                  @map("ip_address") @db.VarChar(45)
+  networkType              String?                  @map("network_type") @db.VarChar(30)
+  riskScore                Int                      @default(0) @map("risk_score") @db.SmallInt
+  createdAt                DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  branch     Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  geoFence   GeoFence?  @relation(fields: [geoFenceId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, capturedAt], map: "idx_gps_attendance_employee_captured")
+  @@index([companyId, capturedAt], map: "idx_gps_attendance_company_captured")
+  @@index([attendanceId], map: "idx_gps_attendance_attendance_id")
+  @@index([branchId], map: "idx_gps_attendance_branch_id")
+  @@map("gps_attendances")
+}
+
+/// Employee location history for field tracking and visit verification.
+model EmployeeLocationHistory {
+  id           String          @id @default(uuid()) @db.Uuid
+  companyId    String          @map("company_id") @db.Uuid
+  employeeId   String          @map("employee_id") @db.Uuid
+  branchId     String?         @map("branch_id") @db.Uuid
+  latitude     Decimal         @db.Decimal(10, 8)
+  longitude    Decimal         @db.Decimal(11, 8)
+  accuracy     Decimal?        @db.Decimal(8, 2)
+  altitude     Decimal?        @db.Decimal(8, 2)
+  address      String?         @db.Text
+  activityType GpsActivityType @map("activity_type")
+  capturedAt   DateTime        @map("captured_at") @db.Timestamptz
+  deviceInfo   Json?           @map("device_info")
+  ipAddress    String?         @map("ip_address") @db.VarChar(45)
+  networkType  String?         @map("network_type") @db.VarChar(30)
+  riskScore    Int             @default(0) @map("risk_score") @db.SmallInt
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, capturedAt], map: "idx_employee_location_history_employee_captured")
+  @@index([companyId, capturedAt], map: "idx_employee_location_history_company_captured")
+  @@index([branchId, capturedAt], map: "idx_employee_location_history_branch_captured")
+  @@map("employee_location_histories")
+}
+
+/// Location validation audit log for accept/reject decisions.
+model LocationValidationLog {
+  id                  String                   @id @default(uuid()) @db.Uuid
+  companyId           String                   @map("company_id") @db.Uuid
+  employeeId          String                   @map("employee_id") @db.Uuid
+  branchId            String?                  @map("branch_id") @db.Uuid
+  geoFenceId          String?                  @map("geo_fence_id") @db.Uuid
+  latitude            Decimal                  @db.Decimal(10, 8)
+  longitude           Decimal                  @db.Decimal(11, 8)
+  accuracy            Decimal?                 @db.Decimal(8, 2)
+  distanceMeters      Int?                     @map("distance_meters")
+  allowedRadiusMeters Int?                     @map("allowed_radius_meters")
+  validationStatus    LocationValidationStatus @map("validation_status")
+  rejectionReason     String?                  @map("rejection_reason") @db.Text
+  riskScore           Int                      @default(0) @map("risk_score") @db.SmallInt
+  deviceInfo          Json?                    @map("device_info")
+  ipAddress           String?                  @map("ip_address") @db.VarChar(45)
+  networkType         String?                  @map("network_type") @db.VarChar(30)
+  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, createdAt], map: "idx_location_validation_log_employee_created")
+  @@index([companyId, createdAt], map: "idx_location_validation_log_company_created")
+  @@index([branchId], map: "idx_location_validation_log_branch_id")
+  @@map("location_validation_logs")
+}
+
+/// Secure dynamic QR code for attendance.
+model QrCode {
+  id              String       @id @default(uuid()) @db.Uuid
+  companyId       String       @map("company_id") @db.Uuid
+  codeType        QrCodeType   @map("code_type")
+  name            String       @db.VarChar(100)
+  branchId        String?      @map("branch_id") @db.Uuid
+  departmentId    String?      @map("department_id") @db.Uuid
+  shiftId         String?      @map("shift_id") @db.Uuid
+  nonceHash       String       @map("nonce_hash") @db.VarChar(64)
+  signature       String       @db.VarChar(128)
+  expiresAt       DateTime     @map("expires_at") @db.Timestamptz
+  expirySeconds   Int          @map("expiry_seconds") @db.SmallInt
+  status          QrCodeStatus @default(active)
+  revokedAt       DateTime?    @map("revoked_at") @db.Timestamptz
+  revokedBy       String?      @map("revoked_by") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?      @map("created_by") @db.Uuid
+  version         Int          @default(1)
+
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  scanLogs     QrScanLog[]
+  validations  QrValidationLog[]
+  qrAttendances QrAttendance[]
+
+  @@index([companyId, status], map: "idx_qr_codes_company_status")
+  @@index([companyId, expiresAt], map: "idx_qr_codes_company_expires")
+  @@index([nonceHash], map: "idx_qr_codes_nonce_hash")
+  @@index([branchId], map: "idx_qr_codes_branch_id")
+  @@map("qr_codes")
+}
+
+/// QR attendance policy per company/branch.
+model QrPolicy {
+  id                     String           @id @default(uuid()) @db.Uuid
+  companyId              String           @map("company_id") @db.Uuid
+  branchId               String?          @map("branch_id") @db.Uuid
+  name                   String           @db.VarChar(100)
+  validationMode         QrValidationMode @default(qr_only) @map("validation_mode")
+  defaultExpirySeconds   Int              @default(60) @map("default_expiry_seconds") @db.SmallInt
+  requireBranchMatch     Boolean          @default(true) @map("require_branch_match")
+  requireShiftMatch      Boolean          @default(false) @map("require_shift_match")
+  requireDepartmentMatch Boolean          @default(false) @map("require_department_match")
+  singleUse              Boolean          @default(true) @map("single_use")
+  maxScansPerEmployee    Int?             @map("max_scans_per_employee") @db.SmallInt
+  isDefault              Boolean          @default(false) @map("is_default")
+  status                 RecordStatus     @default(active)
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy              String?          @map("created_by") @db.Uuid
+  updatedBy              String?          @map("updated_by") @db.Uuid
+  version                Int              @default(1)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, isDefault], map: "idx_qr_policies_company_default")
+  @@map("qr_policies")
+}
+
+/// QR scan attempt log.
+model QrScanLog {
+  id              String       @id @default(uuid()) @db.Uuid
+  companyId       String       @map("company_id") @db.Uuid
+  qrCodeId        String?      @map("qr_code_id") @db.Uuid
+  employeeId      String?      @map("employee_id") @db.Uuid
+  attendanceLogId String?      @map("attendance_log_id") @db.Uuid
+  punchType       PunchType?   @map("punch_type")
+  scannedAt       DateTime     @map("scanned_at") @db.Timestamptz
+  result          QrScanResult
+  failureReason   String?      @map("failure_reason") @db.Text
+  nonceHash       String?      @map("nonce_hash") @db.VarChar(64)
+  deviceInfo      Json?        @map("device_info")
+  ipAddress       String?      @map("ip_address") @db.VarChar(45)
+  riskScore       Int          @default(0) @map("risk_score") @db.SmallInt
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  qrCode   QrCode?   @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, scannedAt], map: "idx_qr_scan_logs_employee_scanned")
+  @@index([companyId, scannedAt], map: "idx_qr_scan_logs_company_scanned")
+  @@index([qrCodeId], map: "idx_qr_scan_logs_qr_code_id")
+  @@index([result], map: "idx_qr_scan_logs_result")
+  @@map("qr_scan_logs")
+}
+
+/// QR validation step audit log.
+model QrValidationLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  qrCodeId     String?  @map("qr_code_id") @db.Uuid
+  employeeId   String?  @map("employee_id") @db.Uuid
+  scanLogId    String?  @map("scan_log_id") @db.Uuid
+  step         String   @db.VarChar(30)
+  passed       Boolean
+  details      String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  qrCode QrCode? @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
+
+  @@index([qrCodeId, createdAt], map: "idx_qr_validation_logs_qr_code_created")
+  @@index([companyId, createdAt], map: "idx_qr_validation_logs_company_created")
+  @@map("qr_validation_logs")
+}
+
+/// QR scan attendance metadata — one row per QR punch event.
+model QrAttendance {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  attendanceId    String   @map("attendance_id") @db.Uuid
+  qrCodeId        String   @map("qr_code_id") @db.Uuid
+  scanLogId       String?  @map("scan_log_id") @db.Uuid
+  qrTokenHash     String   @map("qr_token_hash") @db.VarChar(64)
+  scannedAt       DateTime @map("scanned_at") @db.Timestamptz
+  terminalId      String?  @map("terminal_id") @db.VarChar(100)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  qrCode     QrCode     @relation(fields: [qrCodeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, scannedAt], map: "idx_qr_attendance_employee_scanned")
+  @@index([companyId, scannedAt], map: "idx_qr_attendance_company_scanned")
+  @@index([attendanceId], map: "idx_qr_attendance_attendance_id")
+  @@index([qrCodeId], map: "idx_qr_attendance_qr_code_id")
+  @@map("qr_attendances")
+}
+
+/// Face recognition attendance metadata.
+model FaceAttendance {
+  id           String   @id @default(uuid()) @db.Uuid
+  attendanceId String   @unique @map("attendance_id") @db.Uuid
+  confidence   Decimal? @db.Decimal(5, 4)
+  photoFileId  String?  @map("photo_file_id") @db.Uuid
+  modelVersion String?  @map("model_version") @db.VarChar(50)
+  verifiedAt   DateTime @map("verified_at") @db.Timestamptz
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@map("face_attendances")
+}
+
+model Holiday {
+  id                       String       @id @default(uuid()) @db.Uuid
+  companyId                String       @map("company_id") @db.Uuid
+  branchId                 String?      @map("branch_id") @db.Uuid
+  name                     String       @db.VarChar(255)
+  date                     DateTime     @db.Date
+  holidayType              HolidayType  @default(public) @map("holiday_type")
+  description              String?      @db.Text
+  applicableDepartmentIds  Json         @default("[]") @map("applicable_department_ids")
+  calendarYear             Int          @map("calendar_year") @db.SmallInt
+  status                   RecordStatus @default(active)
+  remarks                  String?      @db.Text
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy    String?      @map("created_by") @db.Uuid
+  updatedBy    String?      @map("updated_by") @db.Uuid
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy    String?      @map("deleted_by") @db.Uuid
+  version      Int          @default(1)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch  Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, date], map: "idx_holidays_company_date")
+  @@index([companyId, calendarYear], map: "idx_holidays_company_year")
+  @@map("holidays")
+}
+
+// =============================================================================
+// Attendance Core Engine — rules, corrections, approvals, summaries
+// AttendanceRecord = Attendance model | AttendancePunch = AttendanceLog model
+// =============================================================================
+
+enum AttendanceApprovalStatus {
+  pending
+  approved
+  rejected
+
+  @@map("attendance_approval_status")
+}
+
+enum AttendanceCorrectionType {
+  missed_punch
+  wrong_timing
+  wrong_location
+  manual
+
+  @@map("attendance_correction_type")
+}
+
+enum AttendanceCorrectionStatus {
+  submitted
+  manager_approved
+  hr_approved
+  rejected
+  cancelled
+
+  @@map("attendance_correction_status")
+}
+
+enum AttendanceSummaryPeriod {
+  daily
+  monthly
+
+  @@map("attendance_summary_period")
+}
+
+/// Configurable attendance rules per company/branch.
+model AttendanceRule {
+  id                      String       @id @default(uuid()) @db.Uuid
+  companyId               String       @map("company_id") @db.Uuid
+  branchId                String?      @map("branch_id") @db.Uuid
+  name                    String       @db.VarChar(100)
+  gracePeriodMinutes      Int          @default(15) @map("grace_period_minutes") @db.SmallInt
+  lateLimitMinutes        Int          @default(15) @map("late_limit_minutes") @db.SmallInt
+  halfDayThresholdMinutes Int          @default(240) @map("half_day_threshold_minutes") @db.SmallInt
+  overtimeStartMinutes    Int          @default(0) @map("overtime_start_minutes") @db.SmallInt
+  minimumWorkMinutes      Int          @default(480) @map("minimum_work_minutes") @db.SmallInt
+  earlyLeavingGraceMinutes Int         @default(15) @map("early_leaving_grace_minutes") @db.SmallInt
+  isDefault               Boolean      @default(false) @map("is_default")
+  status                  RecordStatus @default(active)
+  createdAt               DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy               String?      @map("created_by") @db.Uuid
+  updatedBy               String?      @map("updated_by") @db.Uuid
+  version                 Int          @default(1)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, isDefault], map: "idx_attendance_rules_company_default")
+  @@map("attendance_rules")
+}
+
+/// Attendance correction / regularization request.
+model AttendanceCorrection {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  companyId          String                   @map("company_id") @db.Uuid
+  employeeId         String                   @map("employee_id") @db.Uuid
+  attendanceId       String?                  @map("attendance_id") @db.Uuid
+  attendanceDate     DateTime                 @map("attendance_date") @db.Date
+  correctionType     AttendanceCorrectionType @map("correction_type")
+  requestedCheckIn   DateTime?                @map("requested_check_in") @db.Timestamptz
+  requestedCheckOut  DateTime?                @map("requested_check_out") @db.Timestamptz
+  reason             String                   @db.Text
+  status             AttendanceCorrectionStatus @default(submitted)
+  createdAt          DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                 @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?                  @map("created_by") @db.Uuid
+  updatedBy          String?                  @map("updated_by") @db.Uuid
+  deletedAt          DateTime?                @map("deleted_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  employee   Employee             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendance Attendance?          @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  approvals  AttendanceApproval[]
+
+  @@index([employeeId, attendanceDate], map: "idx_attendance_corrections_employee_date")
+  @@index([companyId, status], map: "idx_attendance_corrections_company_status")
+  @@map("attendance_corrections")
+}
+
+/// Approval step for attendance correction.
+model AttendanceApproval {
+  id             String                   @id @default(uuid()) @db.Uuid
+  companyId      String                   @map("company_id") @db.Uuid
+  correctionId   String                   @map("correction_id") @db.Uuid
+  approverRole   String                   @map("approver_role") @db.VarChar(30)
+  approverUserId String?                  @map("approver_user_id") @db.Uuid
+  status         AttendanceApprovalStatus @default(pending)
+  comments       String?                  @db.Text
+  actedAt        DateTime?                @map("acted_at") @db.Timestamptz
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+
+  correction AttendanceCorrection @relation(fields: [correctionId], references: [id], onDelete: Cascade)
+
+  @@index([correctionId, approverRole], map: "idx_attendance_approvals_correction")
+  @@map("attendance_approvals")
+}
+
+/// Pre-aggregated attendance summary for reporting.
+model AttendanceSummary {
+  id               String                  @id @default(uuid()) @db.Uuid
+  companyId        String                  @map("company_id") @db.Uuid
+  employeeId       String                  @map("employee_id") @db.Uuid
+  attendanceId     String?                 @map("attendance_id") @db.Uuid
+  periodType       AttendanceSummaryPeriod @map("period_type")
+  periodStart      DateTime                @map("period_start") @db.Date
+  periodEnd        DateTime                @map("period_end") @db.Date
+  presentDays      Int                     @default(0) @map("present_days") @db.SmallInt
+  absentDays       Int                     @default(0) @map("absent_days") @db.SmallInt
+  lateDays         Int                     @default(0) @map("late_days") @db.SmallInt
+  halfDays         Int                     @default(0) @map("half_days") @db.SmallInt
+  leaveDays        Int                     @default(0) @map("leave_days") @db.SmallInt
+  overtimeMinutes  Int                     @default(0) @map("overtime_minutes")
+  totalWorkMinutes Int                     @default(0) @map("total_work_minutes")
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendance Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, periodType, periodStart], map: "uq_attendance_summary_employee_period")
+  @@index([companyId, periodType, periodStart], map: "idx_attendance_summary_company_period")
+  @@map("attendance_summaries")
+}

@@ -1,0 +1,198 @@
+// =============================================================================
+// Employee — Core workforce entity
+// =============================================================================
+
+/// Employee master record — central entity linking HR, payroll, attendance.
+model Employee {
+  id                 String         @id @default(uuid()) @db.Uuid
+  companyId          String         @map("company_id") @db.Uuid
+  branchId           String         @map("branch_id") @db.Uuid
+  departmentId       String         @map("department_id") @db.Uuid
+  designationId      String         @map("designation_id") @db.Uuid
+  costCenterId       String?        @map("cost_center_id") @db.Uuid
+  reportingManagerId String?        @map("reporting_manager_id") @db.Uuid
+  userId             String?        @unique @map("user_id") @db.Uuid
+  employeeCode       String         @map("employee_code") @db.VarChar(50)
+  firstName          String         @map("first_name") @db.VarChar(100)
+  middleName         String?        @map("middle_name") @db.VarChar(100)
+  lastName           String         @map("last_name") @db.VarChar(100)
+  preferredName      String?        @map("preferred_name") @db.VarChar(100)
+  email              String         @db.VarChar(255)
+  personalEmail      String?        @map("personal_email") @db.VarChar(255)
+  phone              String?        @db.VarChar(20)
+  alternatePhone     String?        @map("alternate_phone") @db.VarChar(20)
+  dateOfBirth        DateTime?      @map("date_of_birth") @db.Date
+  gender             Gender?
+  bloodGroup         String?        @map("blood_group") @db.VarChar(10)
+  nationality        String?        @db.VarChar(100)
+  maritalStatus      String?        @map("marital_status") @db.VarChar(30)
+  fatherName         String?        @map("father_name") @db.VarChar(200)
+  motherName         String?        @map("mother_name") @db.VarChar(200)
+  spouseName         String?        @map("spouse_name") @db.VarChar(200)
+  dateOfJoining      DateTime       @map("date_of_joining") @db.Date
+  confirmationDate   DateTime?      @map("confirmation_date") @db.Date
+  dateOfSeparation   DateTime?      @map("date_of_separation") @db.Date
+  employmentType     EmploymentType @default(permanent) @map("employment_type")
+  employmentStatus   EmployeeStatus @default(active) @map("employment_status")
+  probationStatus    String?        @map("probation_status") @db.VarChar(50)
+  noticePeriodDays   Int?           @map("notice_period_days") @db.SmallInt
+  workLocation       String?        @map("work_location") @db.VarChar(255)
+  photoFileId        String?        @map("photo_file_id") @db.Uuid
+  emergencyContact   Json           @default("{}") @map("emergency_contact")
+  address            Json           @default("{}")
+  permanentAddress   Json           @default("{}") @map("permanent_address")
+  currentAddress     Json           @default("{}") @map("current_address")
+  identityDocuments  Json           @default("{}") @map("identity_documents")
+  bankDetails        Json           @default("{}") @map("bank_details")
+  customFields       Json           @default("{}") @map("custom_fields")
+  status             RecordStatus   @default(active)
+  remarks            String?        @db.Text
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?        @map("created_by") @db.Uuid
+  updatedBy          String?        @map("updated_by") @db.Uuid
+  deletedAt          DateTime?      @map("deleted_at") @db.Timestamptz
+  deletedBy          String?        @map("deleted_by") @db.Uuid
+  version            Int            @default(1)
+
+  company           Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch            Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  department        Department   @relation("EmployeeDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
+  designation       Designation  @relation(fields: [designationId], references: [id], onDelete: Restrict)
+  costCenter        CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  reportingManager  Employee?    @relation("EmployeeManager", fields: [reportingManagerId], references: [id], onDelete: SetNull)
+  directReports     Employee[]   @relation("EmployeeManager")
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  headOfDepartments Department[] @relation("DepartmentHead")
+  timelineEvents    EmployeeTimelineEvent[]
+
+  attendances        Attendance[]
+  attendanceLogs     AttendanceLog[]
+  attendanceCorrections AttendanceCorrection[]
+  attendanceSummaries AttendanceSummary[]
+  gpsAttendances     GpsAttendance[]
+  locationHistories  EmployeeLocationHistory[]
+  locationValidationLogs LocationValidationLog[]
+  qrAttendances          QrAttendance[]
+  qrScanLogs             QrScanLog[]
+  shiftAssignments   ShiftAssignment[]
+  leaves             Leave[]
+  leaveBalances      LeaveBalance[]
+  leaveEncashments   LeaveEncashment[]
+  leaveAccruals      LeaveAccrual[]
+  delegatedLeaves    Leave[]           @relation("LeaveDelegate")
+  employeeSalaries   EmployeeSalary[]
+  salaryRevisionRecords SalaryRevision[]
+  payrollItems          PayrollItem[]
+  payrollCalculations   PayrollCalculation[]
+  bonuses            Bonus[]
+  incentives         Incentive[]
+  loans              Loan[]
+  advances           Advance[]
+  assetAssignments   AssetAssignment[]
+  expenses           Expense[]
+  documents          EmployeeDocument[]
+  bankDetailsRecords EmployeeBankDetail[]
+  emergencyContacts  EmployeeEmergencyContact[]
+  familyMembers      EmployeeFamilyMember[]
+  nominees           EmployeeNominee[]
+  statutoryDetail         EmployeeStatutoryDetail?
+  taxProfile              EmployeeTaxProfile?
+  statutoryProfile        EmployeeStatutoryProfile?
+  investmentDeclarations  InvestmentDeclaration[]
+  taxComputations         TaxComputation[]
+  employerContributions   EmployerContribution[]
+  overtimeRecords         OvertimeRecord[]
+  employeeBonuses         EmployeeBonus[]
+  employeeIncentives      EmployeeIncentive[]
+  employeeCommissions     EmployeeCommission[]
+  employeeAllowances      EmployeeAllowance[]
+  productionMetrics       ProductionMetric[]
+  performanceMetrics      PerformanceMetric[]
+  employeeLoans           EmployeeLoan[]
+  loanRecoveries          LoanRecovery[]
+  salaryAdvances          SalaryAdvance[]
+  advanceRecoveries       AdvanceRecovery[]
+  recoveryHistory         RecoveryHistory[]
+  recoveryAdjustments     RecoveryAdjustment[]
+  payslips                Payslip[]
+  payrollDocuments        PayrollDocument[]
+  salaryCertificates      SalaryCertificate[]
+  documentDistributions   DocumentDistribution[]
+  bankTransferRecords     BankTransferRecord[]
+  retroPayrolls           RetroPayroll[]
+  payrollArrears          PayrollArrear[]
+  insurancePolicies  EmployeeInsurance[]
+  interviews         Interview[]
+  trainings          Training[]
+  performanceReviews PerformanceReview[]
+
+  workflowRequests   WorkflowRequest[]
+  journeyEvents      EmployeeJourneyEvent[]
+  joiningRecord      EmployeeJoiningRecord?
+  probationRecords   ProbationRecord[]
+  confirmationRecords ConfirmationRecord[]
+  transferRecords    TransferRecord[]
+  promotionRecords   PromotionRecord[]
+  salaryRevisions    SalaryRevisionHistory[]
+  warningRecords     WarningRecord[]
+  suspensionRecords  SuspensionRecord[]
+  resignationRecords ResignationRecord[]
+  exitClearances     ExitClearance[]
+  terminationRecords TerminationRecord[]
+  alumniRecord       AlumniRecord?
+  lifecycleNotifications LifecycleNotification[]
+
+  @@unique([companyId, employeeCode], map: "uq_employees_company_code")
+  @@unique([companyId, email], map: "uq_employees_company_email")
+  @@index([companyId], map: "idx_employees_company_id")
+  @@index([branchId], map: "idx_employees_branch_id")
+  @@index([departmentId], map: "idx_employees_department_id")
+  @@index([designationId], map: "idx_employees_designation_id")
+  @@index([companyId, employmentStatus], map: "idx_employees_company_status")
+  @@index([companyId, status], map: "idx_employees_company_record_status")
+  @@index([reportingManagerId], map: "idx_employees_manager")
+  @@index([phone], map: "idx_employees_phone")
+  @@index([companyId, deletedAt], map: "idx_employees_company_deleted")
+  @@index([companyId, firstName, lastName], map: "idx_employees_company_name")
+  @@map("employees")
+}
+
+/// Atomic employee code sequence per company (optional branch prefix).
+model EmployeeCodeSequence {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  branchId  String?  @map("branch_id") @db.Uuid
+  prefix    String   @db.VarChar(20)
+  lastValue Int      @default(0) @map("last_value")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, branchId], map: "uq_employee_code_seq_company_branch")
+  @@index([companyId], map: "idx_employee_code_seq_company")
+  @@map("employee_code_sequences")
+}
+
+/// Employee lifecycle timeline events.
+model EmployeeTimelineEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  employeeId  String   @map("employee_id") @db.Uuid
+  eventType   String   @map("event_type") @db.VarChar(80)
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  metadata    Json     @default("{}")
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, occurredAt], map: "idx_employee_timeline_employee_date")
+  @@index([companyId, eventType], map: "idx_employee_timeline_company_type")
+  @@map("employee_timeline_events")
+}

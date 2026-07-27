@@ -1,0 +1,283 @@
+// =============================================================================
+// Employee Loan, Salary Advance & Recovery Management
+// =============================================================================
+
+model LoanType {
+  id              String           @id @default(uuid()) @db.Uuid
+  companyId       String           @map("company_id") @db.Uuid
+  name            String           @db.VarChar(100)
+  code            String           @db.VarChar(50)
+  category        String           @db.VarChar(50)
+  interestType    LoanInterestType @default(none) @map("interest_type")
+  defaultRate     Decimal          @default(0) @map("default_rate") @db.Decimal(8, 4)
+  maxTenureMonths Int?             @map("max_tenure_months") @db.SmallInt
+  maxAmount       Decimal?         @map("max_amount") @db.Decimal(15, 2)
+  status          RecordStatus     @default(active)
+  remarks         String?          @db.Text
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?          @map("created_by") @db.Uuid
+  updatedBy       String?          @map("updated_by") @db.Uuid
+  deletedAt       DateTime?        @map("deleted_at") @db.Timestamptz
+  version         Int              @default(1)
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employeeLoans EmployeeLoan[]
+  loanPolicies  LoanPolicy[]
+
+  @@unique([companyId, code], map: "uq_loan_types_company_code")
+  @@map("loan_types")
+}
+
+model LoanPolicy {
+  id                   String       @id @default(uuid()) @db.Uuid
+  companyId            String       @map("company_id") @db.Uuid
+  loanTypeId           String?      @map("loan_type_id") @db.Uuid
+  name                 String       @db.VarChar(100)
+  code                 String       @db.VarChar(50)
+  maxLoanAmount        Decimal?     @map("max_loan_amount") @db.Decimal(15, 2)
+  maxAdvanceAmount     Decimal?     @map("max_advance_amount") @db.Decimal(15, 2)
+  maxTenureMonths      Int?         @map("max_tenure_months") @db.SmallInt
+  minServiceMonths     Int?         @map("min_service_months") @db.SmallInt
+  interestRules        Json         @default("{}") @map("interest_rules")
+  eligibilityRules     Json         @default("{}") @map("eligibility_rules")
+  effectiveFrom        DateTime     @map("effective_from") @db.Date
+  effectiveTo          DateTime?    @map("effective_to") @db.Date
+  status               RecordStatus @default(active)
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?      @map("created_by") @db.Uuid
+  updatedBy            String?      @map("updated_by") @db.Uuid
+  deletedAt            DateTime?    @map("deleted_at") @db.Timestamptz
+  version              Int          @default(1)
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  loanType LoanType? @relation(fields: [loanTypeId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, code], map: "uq_loan_policies_company_code")
+  @@map("loan_policies")
+}
+
+model EmployeeLoan {
+  id                 String             @id @default(uuid()) @db.Uuid
+  companyId          String             @map("company_id") @db.Uuid
+  employeeId         String             @map("employee_id") @db.Uuid
+  loanTypeId         String             @map("loan_type_id") @db.Uuid
+  loanNumber         String             @map("loan_number") @db.VarChar(50)
+  principalAmount    Decimal            @map("principal_amount") @db.Decimal(15, 2)
+  interestType       LoanInterestType   @map("interest_type")
+  interestRate       Decimal            @default(0) @map("interest_rate") @db.Decimal(8, 4)
+  tenureMonths       Int                @map("tenure_months") @db.SmallInt
+  installmentAmount  Decimal            @map("installment_amount") @db.Decimal(15, 2)
+  recoveryMode       LoanRecoveryMode   @default(monthly) @map("recovery_mode")
+  disbursementDate   DateTime?          @map("disbursement_date") @db.Date
+  startRecoveryDate  DateTime?          @map("start_recovery_date") @db.Date
+  outstandingBalance Decimal            @map("outstanding_balance") @db.Decimal(15, 2)
+  recoveredAmount    Decimal            @default(0) @map("recovered_amount") @db.Decimal(15, 2)
+  status             LoanWorkflowStatus @default(draft)
+  remarks            String?            @db.Text
+  metadata           Json               @default("{}")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?            @map("created_by") @db.Uuid
+  updatedBy          String?            @map("updated_by") @db.Uuid
+  deletedAt          DateTime?          @map("deleted_at") @db.Timestamptz
+  version            Int                @default(1)
+
+  employee      Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  loanType      LoanType           @relation(fields: [loanTypeId], references: [id], onDelete: Restrict)
+  emiSchedules  LoanEMISchedule[]
+  recoveries    LoanRecovery[]
+  approvals     LoanApproval[]
+  foreclosures  LoanForeclosure[]
+
+  @@unique([companyId, loanNumber], map: "uq_employee_loans_company_number")
+  @@index([employeeId, status], map: "idx_employee_loans_employee_status")
+  @@map("employee_loans")
+}
+
+model LoanEMISchedule {
+  id                 String   @id @default(uuid()) @db.Uuid
+  companyId          String   @map("company_id") @db.Uuid
+  employeeLoanId     String   @map("employee_loan_id") @db.Uuid
+  emiNumber          Int      @map("emi_number") @db.SmallInt
+  dueDate            DateTime @map("due_date") @db.Date
+  principalComponent Decimal  @map("principal_component") @db.Decimal(15, 2)
+  interestComponent  Decimal  @map("interest_component") @db.Decimal(15, 2)
+  installmentAmount  Decimal  @map("installment_amount") @db.Decimal(15, 2)
+  outstandingBalance Decimal  @map("outstanding_balance") @db.Decimal(15, 2)
+  status             EMIStatus @default(scheduled)
+  paidAt             DateTime? @map("paid_at") @db.Timestamptz
+  payrollCalculationId String? @map("payroll_calculation_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  employeeLoan EmployeeLoan @relation(fields: [employeeLoanId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeLoanId, emiNumber], map: "uq_loan_emi_schedule_loan_number")
+  @@index([employeeLoanId, dueDate], map: "idx_loan_emi_schedule_due")
+  @@index([companyId, status], map: "idx_loan_emi_schedule_company_status")
+  @@map("loan_emi_schedules")
+}
+
+model LoanRecovery {
+  id                   String            @id @default(uuid()) @db.Uuid
+  companyId            String            @map("company_id") @db.Uuid
+  employeeId           String            @map("employee_id") @db.Uuid
+  employeeLoanId       String            @map("employee_loan_id") @db.Uuid
+  emiScheduleId        String?           @map("emi_schedule_id") @db.Uuid
+  payrollCalculationId String?           @map("payroll_calculation_id") @db.Uuid
+  recoveryType         RecoveryEntryType @default(emi) @map("recovery_type")
+  amount               Decimal           @db.Decimal(15, 2)
+  recoveredAt          DateTime          @default(now()) @map("recovered_at") @db.Timestamptz
+  metadata             Json              @default("{}")
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  createdBy            String?           @map("created_by") @db.Uuid
+
+  employeeLoan EmployeeLoan @relation(fields: [employeeLoanId], references: [id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeLoanId], map: "idx_loan_recoveries_loan")
+  @@index([payrollCalculationId], map: "idx_loan_recoveries_payroll")
+  @@map("loan_recoveries")
+}
+
+model SalaryAdvance {
+  id                   String             @id @default(uuid()) @db.Uuid
+  companyId            String             @map("company_id") @db.Uuid
+  employeeId           String             @map("employee_id") @db.Uuid
+  advanceNumber        String             @map("advance_number") @db.VarChar(50)
+  advanceType          String             @map("advance_type") @db.VarChar(50)
+  amount               Decimal            @db.Decimal(15, 2)
+  outstandingBalance   Decimal            @map("outstanding_balance") @db.Decimal(15, 2)
+  recoveredAmount      Decimal            @default(0) @map("recovered_amount") @db.Decimal(15, 2)
+  recoveryStartDate    DateTime           @map("recovery_start_date") @db.Date
+  recoveryMode         LoanRecoveryMode   @default(monthly) @map("recovery_mode")
+  installmentCount     Int                @default(1) @map("installment_count") @db.SmallInt
+  installmentAmount    Decimal            @map("installment_amount") @db.Decimal(15, 2)
+  status               LoanWorkflowStatus @default(draft)
+  remarks              String?            @db.Text
+  metadata             Json               @default("{}")
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?            @map("created_by") @db.Uuid
+  updatedBy            String?            @map("updated_by") @db.Uuid
+  deletedAt            DateTime?          @map("deleted_at") @db.Timestamptz
+  version              Int                @default(1)
+
+  employee   Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  recoveries AdvanceRecovery[]
+
+  @@unique([companyId, advanceNumber], map: "uq_salary_advances_company_number")
+  @@index([employeeId, status], map: "idx_salary_advances_employee_status")
+  @@map("salary_advances")
+}
+
+model AdvanceRecovery {
+  id                   String            @id @default(uuid()) @db.Uuid
+  companyId            String            @map("company_id") @db.Uuid
+  employeeId           String            @map("employee_id") @db.Uuid
+  salaryAdvanceId      String            @map("salary_advance_id") @db.Uuid
+  payrollCalculationId String?           @map("payroll_calculation_id") @db.Uuid
+  recoveryType         RecoveryEntryType @default(advance) @map("recovery_type")
+  amount               Decimal           @db.Decimal(15, 2)
+  recoveredAt          DateTime          @default(now()) @map("recovered_at") @db.Timestamptz
+  metadata             Json              @default("{}")
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  createdBy            String?           @map("created_by") @db.Uuid
+
+  salaryAdvance SalaryAdvance @relation(fields: [salaryAdvanceId], references: [id], onDelete: Restrict)
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([salaryAdvanceId], map: "idx_advance_recoveries_advance")
+  @@index([payrollCalculationId], map: "idx_advance_recoveries_payroll")
+  @@map("advance_recoveries")
+}
+
+model RecoveryHistory {
+  id           String            @id @default(uuid()) @db.Uuid
+  companyId    String            @map("company_id") @db.Uuid
+  employeeId   String            @map("employee_id") @db.Uuid
+  entityType   String            @map("entity_type") @db.VarChar(30)
+  entityId     String            @map("entity_id") @db.Uuid
+  recoveryType RecoveryEntryType @map("recovery_type")
+  amount       Decimal           @db.Decimal(15, 2)
+  balanceAfter Decimal           @map("balance_after") @db.Decimal(15, 2)
+  metadata     Json              @default("{}")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  createdBy    String?           @map("created_by") @db.Uuid
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, createdAt], map: "idx_recovery_history_employee_created")
+  @@map("recovery_history")
+}
+
+model LoanApproval {
+  id             String             @id @default(uuid()) @db.Uuid
+  companyId      String             @map("company_id") @db.Uuid
+  employeeLoanId String             @map("employee_loan_id") @db.Uuid
+  approvalLevel  String             @map("approval_level") @db.VarChar(30)
+  status         LoanWorkflowStatus @default(submitted)
+  approverUserId String?            @map("approver_user_id") @db.Uuid
+  approvedAt     DateTime?          @map("approved_at") @db.Timestamptz
+  remarks        String?            @db.Text
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  employeeLoan EmployeeLoan @relation(fields: [employeeLoanId], references: [id], onDelete: Cascade)
+
+  @@index([employeeLoanId], map: "idx_loan_approvals_loan")
+  @@map("loan_approvals")
+}
+
+model LoanForeclosure {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  employeeLoanId   String   @map("employee_loan_id") @db.Uuid
+  foreclosureType  String   @map("foreclosure_type") @db.VarChar(30)
+  amountPaid       Decimal  @map("amount_paid") @db.Decimal(15, 2)
+  waivedAmount     Decimal  @default(0) @map("waived_amount") @db.Decimal(15, 2)
+  outstandingBefore Decimal @map("outstanding_before") @db.Decimal(15, 2)
+  processedAt      DateTime @default(now()) @map("processed_at") @db.Timestamptz
+  processedBy      String?  @map("processed_by") @db.Uuid
+  remarks          String?  @db.Text
+  metadata         Json     @default("{}")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  employeeLoan EmployeeLoan @relation(fields: [employeeLoanId], references: [id], onDelete: Restrict)
+
+  @@index([employeeLoanId], map: "idx_loan_foreclosures_loan")
+  @@map("loan_foreclosures")
+}
+
+model RecoveryAdjustment {
+  id           String            @id @default(uuid()) @db.Uuid
+  companyId    String            @map("company_id") @db.Uuid
+  employeeId   String            @map("employee_id") @db.Uuid
+  entityType   String            @map("entity_type") @db.VarChar(30)
+  entityId     String            @map("entity_id") @db.Uuid
+  adjustmentType String          @map("adjustment_type") @db.VarChar(30)
+  amount       Decimal           @db.Decimal(15, 2)
+  reason       String?           @db.Text
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  createdBy    String?           @map("created_by") @db.Uuid
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId], map: "idx_recovery_adjustments_employee")
+  @@map("recovery_adjustments")
+}
+
+model LoanAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([companyId, entityType, createdAt], map: "idx_loan_audit_logs_company_entity")
+  @@map("loan_audit_logs")
+}

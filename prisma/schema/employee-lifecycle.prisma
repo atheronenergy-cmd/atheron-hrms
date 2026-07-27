@@ -1,0 +1,548 @@
+// =============================================================================
+// Employee Lifecycle — Journey, approvals, and exit management
+// =============================================================================
+
+enum WorkflowStatus {
+  draft
+  submitted
+  under_review
+  approved
+  rejected
+  cancelled
+
+  @@map("workflow_status")
+}
+
+enum WorkflowActionType {
+  submit
+  review
+  approve
+  reject
+  cancel
+
+  @@map("workflow_action_type")
+}
+
+enum ApproverRole {
+  manager
+  hr
+  director
+
+  @@map("approver_role")
+}
+
+enum ProbationRecordStatus {
+  running
+  completed
+  extended
+  failed
+
+  @@map("probation_record_status")
+}
+
+enum TransferType {
+  branch
+  department
+  location
+  manager
+
+  @@map("transfer_type")
+}
+
+enum WarningType {
+  performance
+  attendance
+  behavior
+  policy_violation
+
+  @@map("warning_type")
+}
+
+enum ResignationReason {
+  career_growth
+  personal
+  relocation
+  higher_studies
+  health
+  other
+
+  @@map("resignation_reason")
+}
+
+enum ResignationStatus {
+  submitted
+  manager_approved
+  hr_processing
+  exit_clearance
+  final_release
+  rejected
+  cancelled
+
+  @@map("resignation_status")
+}
+
+enum ClearanceDepartment {
+  hr
+  accounts
+  it
+  admin
+  store
+
+  @@map("clearance_department")
+}
+
+enum ClearanceItemStatus {
+  pending
+  completed
+  waived
+
+  @@map("clearance_item_status")
+}
+
+enum JourneyStage {
+  pre_joining
+  joining
+  probation
+  confirmation
+  active
+  transfer
+  promotion
+  increment
+  warning
+  suspension
+  resignation
+  termination
+  exit_clearance
+  final_settlement
+  alumni
+
+  @@map("journey_stage")
+}
+
+enum JoiningStatus {
+  pending
+  in_progress
+  hr_approved
+  manager_approved
+  completed
+
+  @@map("joining_status")
+}
+
+enum LifecycleRecordStatus {
+  active
+  inactive
+  completed
+  cancelled
+
+  @@map("lifecycle_record_status")
+}
+
+/// Reusable workflow request for lifecycle approvals.
+model WorkflowRequest {
+  id           String         @id @default(uuid()) @db.Uuid
+  companyId    String         @map("company_id") @db.Uuid
+  employeeId   String         @map("employee_id") @db.Uuid
+  entityType   String         @map("entity_type") @db.VarChar(50)
+  entityId     String         @map("entity_id") @db.Uuid
+  title        String         @db.VarChar(255)
+  status       WorkflowStatus @default(draft)
+  currentStep  Int            @default(0) @map("current_step") @db.SmallInt
+  submittedBy  String?        @map("submitted_by") @db.Uuid
+  submittedAt  DateTime?      @map("submitted_at") @db.Timestamptz
+  completedAt  DateTime?      @map("completed_at") @db.Timestamptz
+  metadata     Json           @default("{}")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy    String?        @map("created_by") @db.Uuid
+  updatedBy    String?        @map("updated_by") @db.Uuid
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz
+  version      Int            @default(1)
+
+  employee Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  steps    WorkflowApprovalStep[]
+
+  @@index([employeeId, status], map: "idx_workflow_requests_employee_status")
+  @@index([companyId, entityType], map: "idx_workflow_requests_company_entity")
+  @@map("workflow_requests")
+}
+
+/// Approval step within a workflow request.
+model WorkflowApprovalStep {
+  id                String              @id @default(uuid()) @db.Uuid
+  workflowRequestId String              @map("workflow_request_id") @db.Uuid
+  stepOrder         Int                 @map("step_order") @db.SmallInt
+  approverRole      ApproverRole        @map("approver_role")
+  approverUserId    String?             @map("approver_user_id") @db.Uuid
+  status            WorkflowStatus      @default(submitted)
+  actionType        WorkflowActionType? @map("action_type")
+  comments          String?             @db.Text
+  actedAt           DateTime?           @map("acted_at") @db.Timestamptz
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  workflowRequest WorkflowRequest @relation(fields: [workflowRequestId], references: [id], onDelete: Cascade)
+
+  @@index([workflowRequestId, stepOrder], map: "idx_workflow_steps_request_order")
+  @@map("workflow_approval_steps")
+}
+
+/// Structured employee journey event log.
+model EmployeeJourneyEvent {
+  id          String       @id @default(uuid()) @db.Uuid
+  companyId   String       @map("company_id") @db.Uuid
+  employeeId  String       @map("employee_id") @db.Uuid
+  stage       JourneyStage
+  eventType   String       @map("event_type") @db.VarChar(80)
+  title       String       @db.VarChar(255)
+  description String?      @db.Text
+  entityType  String?      @map("entity_type") @db.VarChar(50)
+  entityId    String?      @map("entity_id") @db.Uuid
+  eventDate   DateTime     @map("event_date") @db.Timestamptz
+  metadata    Json         @default("{}")
+  status      LifecycleRecordStatus @default(active)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  createdBy   String?      @map("created_by") @db.Uuid
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, eventDate], map: "idx_employee_journey_events_employee_date")
+  @@index([companyId, stage], map: "idx_employee_journey_events_company_stage")
+  @@map("employee_journey_events")
+}
+
+/// Employee joining workflow with checklist.
+model EmployeeJoiningRecord {
+  id                String        @id @default(uuid()) @db.Uuid
+  companyId         String        @map("company_id") @db.Uuid
+  employeeId        String        @unique @map("employee_id") @db.Uuid
+  joiningDate       DateTime      @map("joining_date") @db.Date
+  checklist         Json          @default("[]")
+  status            JoiningStatus @default(pending)
+  hrApproved        Boolean       @default(false) @map("hr_approved")
+  managerApproved   Boolean       @default(false) @map("manager_approved")
+  hrApprovedBy      String?       @map("hr_approved_by") @db.Uuid
+  managerApprovedBy String?       @map("manager_approved_by") @db.Uuid
+  hrApprovedAt      DateTime?     @map("hr_approved_at") @db.Timestamptz
+  managerApprovedAt DateTime?     @map("manager_approved_at") @db.Timestamptz
+  completedAt       DateTime?     @map("completed_at") @db.Timestamptz
+  remarks           String?       @db.Text
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy         String?       @map("created_by") @db.Uuid
+  updatedBy         String?       @map("updated_by") @db.Uuid
+  version           Int           @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status], map: "idx_employee_joining_records_status")
+  @@map("employee_joining_records")
+}
+
+/// Probation tracking record.
+model ProbationRecord {
+  id           String                @id @default(uuid()) @db.Uuid
+  companyId    String                @map("company_id") @db.Uuid
+  employeeId   String                @map("employee_id") @db.Uuid
+  startDate    DateTime              @map("start_date") @db.Date
+  endDate      DateTime              @map("end_date") @db.Date
+  durationDays Int                   @map("duration_days") @db.SmallInt
+  status       ProbationRecordStatus @default(running)
+  reviewerId   String?               @map("reviewer_id") @db.Uuid
+  reviewNotes  String?               @map("review_notes") @db.Text
+  extendedTo   DateTime?             @map("extended_to") @db.Date
+  recommendation String?             @db.VarChar(100)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy    String?               @map("created_by") @db.Uuid
+  updatedBy    String?               @map("updated_by") @db.Uuid
+  deletedAt    DateTime?             @map("deleted_at") @db.Timestamptz
+  version      Int                   @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, status], map: "idx_probation_records_employee_status")
+  @@index([companyId, endDate], map: "idx_probation_records_end_date")
+  @@map("probation_records")
+}
+
+/// Confirmation record after probation.
+model ConfirmationRecord {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  employeeId       String   @map("employee_id") @db.Uuid
+  confirmationDate DateTime @map("confirmation_date") @db.Date
+  approvedBy       String?  @map("approved_by") @db.Uuid
+  managerApprovedBy String? @map("manager_approved_by") @db.Uuid
+  rating           Decimal? @db.Decimal(3, 1)
+  comments         String?  @db.Text
+  status           LifecycleRecordStatus @default(active)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy        String?  @map("created_by") @db.Uuid
+  updatedBy        String?  @map("updated_by") @db.Uuid
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+  version          Int      @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_confirmation_records_employee")
+  @@index([companyId, confirmationDate], map: "idx_confirmation_records_date")
+  @@map("confirmation_records")
+}
+
+/// Transfer history record.
+model TransferRecord {
+  id            String       @id @default(uuid()) @db.Uuid
+  companyId     String       @map("company_id") @db.Uuid
+  employeeId    String       @map("employee_id") @db.Uuid
+  transferType  TransferType @map("transfer_type")
+  previousValue String       @map("previous_value") @db.VarChar(255)
+  newValue      String       @map("new_value") @db.VarChar(255)
+  previousId    String?      @map("previous_id") @db.Uuid
+  newId         String?      @map("new_id") @db.Uuid
+  effectiveDate DateTime     @map("effective_date") @db.Date
+  reason        String?      @db.Text
+  approvedBy    String?      @map("approved_by") @db.Uuid
+  status        LifecycleRecordStatus @default(active)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy     String?      @map("created_by") @db.Uuid
+  updatedBy     String?      @map("updated_by") @db.Uuid
+  deletedAt     DateTime?    @map("deleted_at") @db.Timestamptz
+  version       Int          @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, effectiveDate], map: "idx_transfer_records_employee_date")
+  @@index([companyId, transferType], map: "idx_transfer_records_company_type")
+  @@map("transfer_records")
+}
+
+/// Promotion history record.
+model PromotionRecord {
+  id                   String   @id @default(uuid()) @db.Uuid
+  companyId            String   @map("company_id") @db.Uuid
+  employeeId           String   @map("employee_id") @db.Uuid
+  previousDesignation  String   @map("previous_designation") @db.VarChar(200)
+  newDesignation       String   @map("new_designation") @db.VarChar(200)
+  previousDesignationId String? @map("previous_designation_id") @db.Uuid
+  newDesignationId     String?  @map("new_designation_id") @db.Uuid
+  promotionDate        DateTime @map("promotion_date") @db.Date
+  reason               String?  @db.Text
+  approvedBy           String?  @map("approved_by") @db.Uuid
+  comments             String?  @db.Text
+  status               LifecycleRecordStatus @default(active)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?  @map("created_by") @db.Uuid
+  updatedBy            String?  @map("updated_by") @db.Uuid
+  deletedAt            DateTime? @map("deleted_at") @db.Timestamptz
+  version              Int      @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, promotionDate], map: "idx_promotion_records_employee_date")
+  @@map("promotion_records")
+}
+
+/// Salary revision history (no payroll calculation).
+model SalaryRevisionHistory {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  previousSalary  Decimal  @map("previous_salary") @db.Decimal(15, 2)
+  newSalary       Decimal  @map("new_salary") @db.Decimal(15, 2)
+  effectiveDate   DateTime @map("effective_date") @db.Date
+  reason          String?  @db.Text
+  revisionType    String?  @map("revision_type") @db.VarChar(50)
+  approvedBy      String?  @map("approved_by") @db.Uuid
+  status          LifecycleRecordStatus @default(active)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?  @map("created_by") @db.Uuid
+  updatedBy       String?  @map("updated_by") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+  version         Int      @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, effectiveDate], map: "idx_salary_revision_history_employee_date")
+  @@map("salary_revision_history")
+}
+
+/// Disciplinary warning record.
+model WarningRecord {
+  id          String      @id @default(uuid()) @db.Uuid
+  companyId   String      @map("company_id") @db.Uuid
+  employeeId  String      @map("employee_id") @db.Uuid
+  warningType WarningType @map("warning_type")
+  reason      String      @db.Text
+  description String?     @db.Text
+  issuedDate  DateTime    @map("issued_date") @db.Date
+  issuedBy    String?     @map("issued_by") @db.Uuid
+  status      LifecycleRecordStatus @default(active)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?     @map("created_by") @db.Uuid
+  deletedAt   DateTime?   @map("deleted_at") @db.Timestamptz
+  version     Int         @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, issuedDate], map: "idx_warning_records_employee_date")
+  @@map("warning_records")
+}
+
+/// Suspension record.
+model SuspensionRecord {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  startDate  DateTime @map("start_date") @db.Date
+  endDate    DateTime? @map("end_date") @db.Date
+  reason     String   @db.Text
+  approvedBy String?  @map("approved_by") @db.Uuid
+  status     LifecycleRecordStatus @default(active)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy  String?  @map("created_by") @db.Uuid
+  updatedBy  String?  @map("updated_by") @db.Uuid
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  version    Int      @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, startDate], map: "idx_suspension_records_employee_date")
+  @@map("suspension_records")
+}
+
+/// Resignation request and workflow.
+model ResignationRecord {
+  id               String            @id @default(uuid()) @db.Uuid
+  companyId        String            @map("company_id") @db.Uuid
+  employeeId       String            @map("employee_id") @db.Uuid
+  resignationDate  DateTime          @map("resignation_date") @db.Date
+  lastWorkingDate  DateTime          @map("last_working_date") @db.Date
+  reason           ResignationReason
+  reasonDetails    String?           @map("reason_details") @db.Text
+  noticePeriodDays Int?              @map("notice_period_days") @db.SmallInt
+  approvalStatus   ResignationStatus @default(submitted) @map("approval_status")
+  managerApprovedBy String?          @map("manager_approved_by") @db.Uuid
+  hrProcessedBy    String?           @map("hr_processed_by") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy        String?           @map("created_by") @db.Uuid
+  updatedBy        String?           @map("updated_by") @db.Uuid
+  deletedAt        DateTime?         @map("deleted_at") @db.Timestamptz
+  version          Int               @default(1)
+
+  employee       Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  exitClearances ExitClearance[]
+
+  @@index([employeeId, approvalStatus], map: "idx_resignation_records_employee_status")
+  @@map("resignation_records")
+}
+
+/// Exit clearance workflow.
+model ExitClearance {
+  id                  String            @id @default(uuid()) @db.Uuid
+  companyId           String            @map("company_id") @db.Uuid
+  employeeId          String            @map("employee_id") @db.Uuid
+  resignationRecordId String?           @map("resignation_record_id") @db.Uuid
+  terminationRecordId String?           @map("termination_record_id") @db.Uuid
+  status              LifecycleRecordStatus @default(active)
+  completedAt         DateTime?         @map("completed_at") @db.Timestamptz
+  completedBy         String?           @map("completed_by") @db.Uuid
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy           String?           @map("created_by") @db.Uuid
+  version             Int               @default(1)
+
+  employee          Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  resignationRecord ResignationRecord? @relation(fields: [resignationRecordId], references: [id], onDelete: SetNull)
+  items             ExitClearanceItem[]
+
+  @@index([employeeId], map: "idx_exit_clearances_employee")
+  @@map("exit_clearances")
+}
+
+/// Department-wise exit clearance checklist item.
+model ExitClearanceItem {
+  id              String              @id @default(uuid()) @db.Uuid
+  exitClearanceId String              @map("exit_clearance_id") @db.Uuid
+  department      ClearanceDepartment
+  checklistItem   String              @map("checklist_item") @db.VarChar(255)
+  status          ClearanceItemStatus @default(pending)
+  completedAt     DateTime?           @map("completed_at") @db.Timestamptz
+  completedBy     String?             @map("completed_by") @db.Uuid
+  remarks         String?             @db.Text
+
+  exitClearance ExitClearance @relation(fields: [exitClearanceId], references: [id], onDelete: Cascade)
+
+  @@index([exitClearanceId, department], map: "idx_exit_clearance_items_clearance_dept")
+  @@map("exit_clearance_items")
+}
+
+/// Employer-initiated termination.
+model TerminationRecord {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  terminationDate DateTime @map("termination_date") @db.Date
+  reason          String   @db.Text
+  approvedBy      String?  @map("approved_by") @db.Uuid
+  comments        String?  @db.Text
+  documents       Json     @default("[]")
+  status          LifecycleRecordStatus @default(active)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy       String?  @map("created_by") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+  version         Int      @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, terminationDate], map: "idx_termination_records_employee_date")
+  @@map("termination_records")
+}
+
+/// Alumni record after exit.
+model AlumniRecord {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  employeeId       String   @unique @map("employee_id") @db.Uuid
+  joiningDate      DateTime @map("joining_date") @db.Date
+  exitDate         DateTime @map("exit_date") @db.Date
+  lastDesignation  String   @map("last_designation") @db.VarChar(200)
+  lastDepartment   String   @map("last_department") @db.VarChar(200)
+  employmentHistory Json    @default("[]") @map("employment_history")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy        String?  @map("created_by") @db.Uuid
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, exitDate], map: "idx_alumni_records_exit_date")
+  @@map("alumni_records")
+}
+
+/// Prepared lifecycle notifications queue.
+model LifecycleNotification {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  type       String   @db.VarChar(50)
+  title      String   @db.VarChar(255)
+  message    String   @db.Text
+  dueDate    DateTime? @map("due_date") @db.Timestamptz
+  isRead     Boolean  @default(false) @map("is_read")
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, isRead], map: "idx_lifecycle_notifications_company_read")
+  @@index([employeeId, type], map: "idx_lifecycle_notifications_employee_type")
+  @@map("lifecycle_notifications")
+}

@@ -1,0 +1,619 @@
+// =============================================================================
+// Payroll & Compensation — Salary Structure Management
+// =============================================================================
+
+model ComponentCategory {
+  id          String              @id @default(uuid()) @db.Uuid
+  companyId   String              @map("company_id") @db.Uuid
+  name        String              @db.VarChar(100)
+  code        String              @db.VarChar(50)
+  categoryType SalaryComponentType @map("category_type")
+  description String?             @db.Text
+  sortOrder   Int                 @default(0) @map("sort_order")
+  status      RecordStatus        @default(active)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?             @map("created_by") @db.Uuid
+  updatedBy   String?             @map("updated_by") @db.Uuid
+  deletedAt   DateTime?           @map("deleted_at") @db.Timestamptz
+  version     Int                 @default(1)
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  salaryComponents SalaryComponent[]
+
+  @@unique([companyId, code], map: "uq_component_categories_company_code")
+  @@index([companyId, categoryType], map: "idx_component_categories_company_type")
+  @@map("component_categories")
+}
+
+model PayGrade {
+  id          String       @id @default(uuid()) @db.Uuid
+  companyId   String       @map("company_id") @db.Uuid
+  name        String       @db.VarChar(100)
+  code        String       @db.VarChar(50)
+  level       Int          @default(1) @db.SmallInt
+  minCtc      Decimal?     @map("min_ctc") @db.Decimal(15, 2)
+  maxCtc      Decimal?     @map("max_ctc") @db.Decimal(15, 2)
+  description String?      @db.Text
+  status      RecordStatus @default(active)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?      @map("created_by") @db.Uuid
+  updatedBy   String?      @map("updated_by") @db.Uuid
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz
+  version     Int          @default(1)
+
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  salaryStructures  SalaryStructure[]
+  employeeSalaries  EmployeeSalary[]
+
+  @@unique([companyId, code], map: "uq_pay_grades_company_code")
+  @@index([companyId, level], map: "idx_pay_grades_company_level")
+  @@map("pay_grades")
+}
+
+model SalaryFormula {
+  id          String       @id @default(uuid()) @db.Uuid
+  companyId   String       @map("company_id") @db.Uuid
+  name        String       @db.VarChar(100)
+  code        String       @db.VarChar(50)
+  expression  String       @db.Text
+  description String?      @db.Text
+  variables   Json         @default("[]")
+  status      RecordStatus @default(active)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?      @map("created_by") @db.Uuid
+  updatedBy   String?      @map("updated_by") @db.Uuid
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz
+  version     Int          @default(1)
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  salaryComponents SalaryComponent[]
+
+  @@unique([companyId, code], map: "uq_salary_formulas_company_code")
+  @@index([companyId], map: "idx_salary_formulas_company_id")
+  @@map("salary_formulas")
+}
+
+model PayrollCycle {
+  id          String             @id @default(uuid()) @db.Uuid
+  companyId   String             @map("company_id") @db.Uuid
+  name        String             @db.VarChar(100)
+  year        Int                @db.SmallInt
+  month       Int                @db.SmallInt
+  periodStart DateTime           @map("period_start") @db.Date
+  periodEnd   DateTime           @map("period_end") @db.Date
+  payDate     DateTime           @map("pay_date") @db.Date
+  status      PayrollCycleStatus @default(draft)
+  remarks     String?            @db.Text
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?            @map("created_by") @db.Uuid
+  updatedBy   String?            @map("updated_by") @db.Uuid
+  deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz
+  deletedBy   String?            @map("deleted_by") @db.Uuid
+  version     Int                @default(1)
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payrolls Payroll[]
+
+  @@unique([companyId, year, month], map: "uq_payroll_cycles_company_year_month")
+  @@index([companyId], map: "idx_payroll_cycles_company_id")
+  @@map("payroll_cycles")
+}
+
+/// Reusable salary structure template.
+model SalaryStructure {
+  id                String       @id @default(uuid()) @db.Uuid
+  companyId         String       @map("company_id") @db.Uuid
+  payGradeId        String?      @map("pay_grade_id") @db.Uuid
+  name              String       @db.VarChar(100)
+  code              String       @db.VarChar(50)
+  payFrequency      PayFrequency @default(monthly) @map("pay_frequency")
+  description       String?      @db.Text
+  monthlyCtcDefault Decimal?     @map("monthly_ctc_default") @db.Decimal(15, 2)
+  annualCtcDefault  Decimal?     @map("annual_ctc_default") @db.Decimal(15, 2)
+  isDefault         Boolean      @default(false) @map("is_default")
+  status            RecordStatus @default(active)
+  remarks           String?      @db.Text
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy         String?      @map("created_by") @db.Uuid
+  updatedBy         String?      @map("updated_by") @db.Uuid
+  deletedAt         DateTime?    @map("deleted_at") @db.Timestamptz
+  deletedBy         String?      @map("deleted_by") @db.Uuid
+  version           Int          @default(1)
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payGrade         PayGrade?         @relation(fields: [payGradeId], references: [id], onDelete: SetNull)
+  salaryComponents SalaryComponent[]
+  employeeSalaries EmployeeSalary[]
+  salaryTemplates  SalaryTemplate[]
+
+  @@unique([companyId, code], map: "uq_salary_structures_company_code")
+  @@index([companyId], map: "idx_salary_structures_company_id")
+  @@index([companyId, payGradeId], map: "idx_salary_structures_pay_grade")
+  @@map("salary_structures")
+}
+
+/// Component definition within a salary structure (Basic, HRA, PF, etc.).
+model SalaryComponent {
+  id                    String                @id @default(uuid()) @db.Uuid
+  companyId             String                @map("company_id") @db.Uuid
+  salaryStructureId     String                @map("salary_structure_id") @db.Uuid
+  categoryId            String?               @map("category_id") @db.Uuid
+  formulaId             String?               @map("formula_id") @db.Uuid
+  name                  String                @db.VarChar(100)
+  code                  String                @db.VarChar(50)
+  componentType         SalaryComponentType   @map("component_type")
+  calculationType       SalaryCalculationType @default(fixed) @map("calculation_type")
+  amount                Decimal               @default(0) @db.Decimal(15, 2)
+  percentageOf          String?               @map("percentage_of") @db.VarChar(50)
+  percentageValue       Decimal?              @map("percentage_value") @db.Decimal(8, 4)
+  formulaExpression     String?               @map("formula_expression") @db.Text
+  isTaxable             Boolean               @default(true) @map("is_taxable")
+  isFixed               Boolean               @default(true) @map("is_fixed")
+  isEmployerContribution Boolean              @default(false) @map("is_employer_contribution")
+  affectsGross          Boolean               @default(true) @map("affects_gross")
+  calculationRule       Json?                 @map("calculation_rule")
+  sortOrder             Int                   @default(0) @map("sort_order")
+  status                RecordStatus          @default(active)
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy             String?               @map("created_by") @db.Uuid
+  updatedBy             String?               @map("updated_by") @db.Uuid
+  deletedAt             DateTime?             @map("deleted_at") @db.Timestamptz
+  version               Int                   @default(1)
+
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  salaryStructure SalaryStructure    @relation(fields: [salaryStructureId], references: [id], onDelete: Cascade)
+  category        ComponentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  formula         SalaryFormula?     @relation(fields: [formulaId], references: [id], onDelete: SetNull)
+
+  @@unique([salaryStructureId, code], map: "uq_salary_components_structure_code")
+  @@index([salaryStructureId], map: "idx_salary_components_structure_id")
+  @@index([companyId, componentType], map: "idx_salary_components_company_type")
+  @@map("salary_components")
+}
+
+model SalaryTemplate {
+  id                String              @id @default(uuid()) @db.Uuid
+  companyId         String              @map("company_id") @db.Uuid
+  salaryStructureId String              @map("salary_structure_id") @db.Uuid
+  name              String              @db.VarChar(100)
+  scope             SalaryTemplateScope
+  branchId          String?             @map("branch_id") @db.Uuid
+  departmentId      String?             @map("department_id") @db.Uuid
+  designationId     String?             @map("designation_id") @db.Uuid
+  employeeId        String?             @map("employee_id") @db.Uuid
+  priority          Int                 @default(0) @db.SmallInt
+  effectiveFrom     DateTime            @map("effective_from") @db.Date
+  effectiveTo       DateTime?           @map("effective_to") @db.Date
+  status            RecordStatus        @default(active)
+  remarks           String?             @db.Text
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy         String?             @map("created_by") @db.Uuid
+  updatedBy         String?             @map("updated_by") @db.Uuid
+  deletedAt         DateTime?           @map("deleted_at") @db.Timestamptz
+  version           Int                 @default(1)
+
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  salaryStructure SalaryStructure @relation(fields: [salaryStructureId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, scope], map: "idx_salary_templates_company_scope")
+  @@index([departmentId], map: "idx_salary_templates_department")
+  @@index([designationId], map: "idx_salary_templates_designation")
+  @@index([branchId], map: "idx_salary_templates_branch")
+  @@index([employeeId], map: "idx_salary_templates_employee")
+  @@map("salary_templates")
+}
+
+/// Employee salary assignment — links employee to structure with effective dates.
+model EmployeeSalary {
+  id                   String               @id @default(uuid()) @db.Uuid
+  companyId            String               @map("company_id") @db.Uuid
+  employeeId           String               @map("employee_id") @db.Uuid
+  salaryStructureId    String               @map("salary_structure_id") @db.Uuid
+  payGradeId           String?              @map("pay_grade_id") @db.Uuid
+  baseSalary           Decimal              @map("base_salary") @db.Decimal(15, 2)
+  monthlyCtc           Decimal              @default(0) @map("monthly_ctc") @db.Decimal(15, 2)
+  annualCtc            Decimal              @default(0) @map("annual_ctc") @db.Decimal(15, 2)
+  grossPlaceholder     Decimal              @default(0) @map("gross_placeholder") @db.Decimal(15, 2)
+  netPlaceholder       Decimal              @default(0) @map("net_placeholder") @db.Decimal(15, 2)
+  employerContribution Decimal              @default(0) @map("employer_contribution") @db.Decimal(15, 2)
+  employeeContribution Decimal              @default(0) @map("employee_contribution") @db.Decimal(15, 2)
+  currencyCode         String               @default("INR") @map("currency_code") @db.Char(3)
+  effectiveFrom        DateTime             @map("effective_from") @db.Date
+  effectiveTo          DateTime?            @map("effective_to") @db.Date
+  approvalStatus       SalaryApprovalStatus @default(draft) @map("approval_status")
+  approvedBy           String?              @map("approved_by") @db.Uuid
+  approvedAt           DateTime?            @map("approved_at") @db.Timestamptz
+  components           Json                 @default("[]")
+  status               RecordStatus         @default(active)
+  remarks              String?              @db.Text
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy            String?              @map("created_by") @db.Uuid
+  updatedBy            String?              @map("updated_by") @db.Uuid
+  deletedAt            DateTime?            @map("deleted_at") @db.Timestamptz
+  version              Int                  @default(1)
+
+  employee        Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  salaryStructure SalaryStructure @relation(fields: [salaryStructureId], references: [id], onDelete: Restrict)
+  payGrade        PayGrade?       @relation(fields: [payGradeId], references: [id], onDelete: SetNull)
+  revisions       SalaryRevision[]
+
+  @@index([employeeId], map: "idx_employee_salaries_employee_id")
+  @@index([companyId, approvalStatus], map: "idx_employee_salaries_company_approval")
+  @@index([employeeId, effectiveFrom], map: "idx_employee_salaries_effective")
+  @@map("employee_salaries")
+}
+
+/// Salary revision history linked to employee salary assignments.
+model SalaryRevision {
+  id               String               @id @default(uuid()) @db.Uuid
+  companyId        String               @map("company_id") @db.Uuid
+  employeeId       String               @map("employee_id") @db.Uuid
+  employeeSalaryId String?              @map("employee_salary_id") @db.Uuid
+  previousSalary   Decimal              @map("previous_salary") @db.Decimal(15, 2)
+  newSalary        Decimal              @map("new_salary") @db.Decimal(15, 2)
+  previousCtc      Decimal?             @map("previous_ctc") @db.Decimal(15, 2)
+  newCtc           Decimal?             @map("new_ctc") @db.Decimal(15, 2)
+  effectiveDate    DateTime             @map("effective_date") @db.Date
+  reason           String?              @db.Text
+  revisionType     String?              @map("revision_type") @db.VarChar(50)
+  approvalStatus   SalaryApprovalStatus @default(pending) @map("approval_status")
+  approvedBy       String?              @map("approved_by") @db.Uuid
+  approvedAt       DateTime?            @map("approved_at") @db.Timestamptz
+  status           RecordStatus         @default(active)
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy        String?              @map("created_by") @db.Uuid
+  updatedBy        String?              @map("updated_by") @db.Uuid
+  deletedAt        DateTime?            @map("deleted_at") @db.Timestamptz
+  version          Int                  @default(1)
+
+  employee       Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employeeSalary EmployeeSalary? @relation(fields: [employeeSalaryId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, effectiveDate], map: "idx_salary_revisions_employee_date")
+  @@index([companyId, approvalStatus], map: "idx_salary_revisions_company_approval")
+  @@map("salary_revisions")
+}
+
+/// Pay run / payroll batch for a cycle.
+model Payroll {
+  id                 String        @id @default(uuid()) @db.Uuid
+  companyId          String        @map("company_id") @db.Uuid
+  payrollCycleId     String?       @map("payroll_cycle_id") @db.Uuid
+  payrollPeriodId    String?       @map("payroll_period_id") @db.Uuid
+  branchId           String?       @map("branch_id") @db.Uuid
+  departmentId       String?       @map("department_id") @db.Uuid
+  payrollNumber      String        @map("payroll_number") @db.VarChar(50)
+  status             PayrollStatus @default(draft)
+  scope              String        @default("company") @db.VarChar(30)
+  totalGross         Decimal       @default(0) @map("total_gross") @db.Decimal(15, 2)
+  totalDeductions    Decimal       @default(0) @map("total_deductions") @db.Decimal(15, 2)
+  totalNet           Decimal       @default(0) @map("total_net") @db.Decimal(15, 2)
+  employeeCount      Int           @default(0) @map("employee_count")
+  errorCount         Int           @default(0) @map("error_count")
+  calculationVersion Int           @default(1) @map("calculation_version")
+  finalizedAt        DateTime?     @map("finalized_at") @db.Timestamptz
+  finalizedBy        String?       @map("finalized_by") @db.Uuid
+  approvedBy         String?       @map("approved_by") @db.Uuid
+  approvedAt         DateTime?     @map("approved_at") @db.Timestamptz
+  lockedAt           DateTime?     @map("locked_at") @db.Timestamptz
+  lockedBy           String?       @map("locked_by") @db.Uuid
+  remarks            String?       @db.Text
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?       @map("created_by") @db.Uuid
+  updatedBy          String?       @map("updated_by") @db.Uuid
+  deletedAt          DateTime?     @map("deleted_at") @db.Timestamptz
+  deletedBy          String?       @map("deleted_by") @db.Uuid
+  version            Int           @default(1)
+
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payrollCycle       PayrollCycle?       @relation(fields: [payrollCycleId], references: [id], onDelete: Restrict)
+  payrollPeriod      PayrollPeriod?      @relation(fields: [payrollPeriodId], references: [id], onDelete: Restrict)
+  payrollItems       PayrollItem[]
+  payrollCalculations PayrollCalculation[]
+  payrollSummaries   PayrollSummary[]
+  calculationLogs    PayrollCalculationLog[]
+  payrollVersions    PayrollVersion[]
+  payslips           Payslip[]
+  payrollDocuments   PayrollDocument[]
+  payrollArchives    PayrollArchive[]
+  payrollReports     PayrollReport[]
+  bankTransferBatches BankTransferBatch[]
+  payrollExportRecords PayrollExportRecord[]
+  accountingExports  AccountingExport[]
+  journalEntries     JournalEntry[]
+  payrollAnalyticsSnapshots PayrollAnalyticsSnapshot[]
+  payrollApprovals          PayrollApproval[]
+  payrollLocks              PayrollLock[]
+  payrollSnapshots          PayrollSnapshot[]
+  retroPayrolls             RetroPayroll[]
+  payrollArrears            PayrollArrear[] @relation("PayrollArrearTarget")
+  payrollBackups            PayrollBackup[]
+  payrollComplianceSnapshots PayrollComplianceSnapshot[]
+  payrollReopenLogs         PayrollReopenLog[]
+
+  @@unique([companyId, payrollNumber], map: "uq_payrolls_company_number")
+  @@index([companyId], map: "idx_payrolls_company_id")
+  @@index([payrollCycleId], map: "idx_payrolls_cycle_id")
+  @@index([payrollPeriodId], map: "idx_payrolls_period_id")
+  @@index([companyId, status], map: "idx_payrolls_company_status")
+  @@map("payrolls")
+}
+
+/// Individual employee payslip within a payroll run.
+model PayrollItem {
+  id                  String        @id @default(uuid()) @db.Uuid
+  payrollId           String        @map("payroll_id") @db.Uuid
+  employeeId          String        @map("employee_id") @db.Uuid
+  payslipNumber       String        @map("payslip_number") @db.VarChar(50)
+  grossEarnings       Decimal       @default(0) @map("gross_earnings") @db.Decimal(15, 2)
+  totalDeductions     Decimal       @default(0) @map("total_deductions") @db.Decimal(15, 2)
+  netPay              Decimal       @default(0) @map("net_pay") @db.Decimal(15, 2)
+  earningsBreakdown   Json          @default("[]") @map("earnings_breakdown")
+  deductionsBreakdown Json          @default("[]") @map("deductions_breakdown")
+  payslipFileId       String?       @map("payslip_file_id") @db.Uuid
+  status              PayrollStatus @default(draft)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  version             Int           @default(1)
+
+  payroll  Payroll  @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([payrollId, employeeId], map: "uq_payroll_items_payroll_employee")
+  @@index([employeeId], map: "idx_payroll_items_employee_id")
+  @@map("payroll_items")
+}
+
+model Bonus {
+  id         String      @id @default(uuid()) @db.Uuid
+  employeeId String      @map("employee_id") @db.Uuid
+  amount     Decimal     @db.Decimal(15, 2)
+  reason     String?     @db.Text
+  bonusDate  DateTime    @map("bonus_date") @db.Date
+  status     BonusStatus @default(pending)
+  approvedBy String?     @map("approved_by") @db.Uuid
+  approvedAt DateTime?   @map("approved_at") @db.Timestamptz
+  payrollId  String?     @map("payroll_id") @db.Uuid
+  remarks    String?     @db.Text
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy  String?     @map("created_by") @db.Uuid
+  version    Int         @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_bonuses_employee_id")
+  @@map("bonuses")
+}
+
+model Incentive {
+  id          String          @id @default(uuid()) @db.Uuid
+  employeeId  String          @map("employee_id") @db.Uuid
+  amount      Decimal         @db.Decimal(15, 2)
+  reason      String?         @db.Text
+  periodStart DateTime        @map("period_start") @db.Date
+  periodEnd   DateTime        @map("period_end") @db.Date
+  status      IncentiveStatus @default(pending)
+  approvedBy  String?         @map("approved_by") @db.Uuid
+  approvedAt  DateTime?       @map("approved_at") @db.Timestamptz
+  payrollId   String?         @map("payroll_id") @db.Uuid
+  remarks     String?         @db.Text
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy   String?         @map("created_by") @db.Uuid
+  version     Int             @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_incentives_employee_id")
+  @@map("incentives")
+}
+
+model Loan {
+  id               String     @id @default(uuid()) @db.Uuid
+  employeeId       String     @map("employee_id") @db.Uuid
+  amount           Decimal    @db.Decimal(15, 2)
+  interestRate     Decimal    @default(0) @map("interest_rate") @db.Decimal(5, 2)
+  tenureMonths     Int        @map("tenure_months")
+  monthlyEmi       Decimal    @map("monthly_emi") @db.Decimal(15, 2)
+  status           LoanStatus @default(pending)
+  approvedBy       String?    @map("approved_by") @db.Uuid
+  approvedAt       DateTime?  @map("approved_at") @db.Timestamptz
+  recoverySchedule Json       @default("[]") @map("recovery_schedule")
+  remarks          String?    @db.Text
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy        String?    @map("created_by") @db.Uuid
+  version          Int        @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_loans_employee_id")
+  @@index([status], map: "idx_loans_status")
+  @@map("loans")
+}
+
+model Advance {
+  id               String        @id @default(uuid()) @db.Uuid
+  employeeId       String        @map("employee_id") @db.Uuid
+  amount           Decimal       @db.Decimal(15, 2)
+  reason           String?       @db.Text
+  status           AdvanceStatus @default(pending)
+  approvedBy       String?       @map("approved_by") @db.Uuid
+  approvedAt       DateTime?     @map("approved_at") @db.Timestamptz
+  recoverySchedule Json          @default("[]") @map("recovery_schedule")
+  remarks          String?       @db.Text
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy        String?       @map("created_by") @db.Uuid
+  version          Int           @default(1)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_advances_employee_id")
+  @@map("advances")
+}
+
+// =============================================================================
+// Payroll Calculation Engine
+// =============================================================================
+
+model PayrollPeriod {
+  id           String              @id @default(uuid()) @db.Uuid
+  companyId    String              @map("company_id") @db.Uuid
+  name         String              @db.VarChar(100)
+  periodType   PayrollPeriodType   @default(monthly) @map("period_type")
+  payrollYear  Int                 @map("payroll_year") @db.SmallInt
+  payrollMonth Int?                @map("payroll_month") @db.SmallInt
+  startDate    DateTime            @map("start_date") @db.Date
+  endDate      DateTime            @map("end_date") @db.Date
+  payDate      DateTime?           @map("pay_date") @db.Date
+  status       PayrollPeriodStatus @default(draft)
+  remarks      String?             @db.Text
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy    String?             @map("created_by") @db.Uuid
+  updatedBy    String?             @map("updated_by") @db.Uuid
+  deletedAt    DateTime?           @map("deleted_at") @db.Timestamptz
+  deletedBy    String?             @map("deleted_by") @db.Uuid
+  version      Int                 @default(1)
+
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payrolls         Payroll[]
+  payrollSummaries PayrollSummary[]
+
+  @@unique([companyId, periodType, payrollYear, payrollMonth, startDate], map: "uq_payroll_periods_company_range")
+  @@index([companyId, status], map: "idx_payroll_periods_company_status")
+  @@map("payroll_periods")
+}
+
+model PayrollCalculation {
+  id                 String        @id @default(uuid()) @db.Uuid
+  companyId          String        @map("company_id") @db.Uuid
+  payrollId          String        @map("payroll_id") @db.Uuid
+  employeeId         String        @map("employee_id") @db.Uuid
+  employeeSalaryId   String?       @map("employee_salary_id") @db.Uuid
+  salaryStructureId  String?       @map("salary_structure_id") @db.Uuid
+  status             PayrollStatus @default(draft)
+  grossSalary        Decimal       @default(0) @map("gross_salary") @db.Decimal(15, 2)
+  totalDeductions    Decimal       @default(0) @map("total_deductions") @db.Decimal(15, 2)
+  netSalary          Decimal       @default(0) @map("net_salary") @db.Decimal(15, 2)
+  paidDays           Decimal       @default(0) @map("paid_days") @db.Decimal(5, 2)
+  workingDays        Decimal       @default(0) @map("working_days") @db.Decimal(5, 2)
+  attendanceSummary  Json          @default("{}") @map("attendance_summary")
+  leaveSummary       Json          @default("{}") @map("leave_summary")
+  calculationSnapshot Json         @default("{}") @map("calculation_snapshot")
+  warnings           Json          @default("[]")
+  calculationVersion Int           @default(1) @map("calculation_version")
+  approvedBy         String?       @map("approved_by") @db.Uuid
+  approvedAt         DateTime?     @map("approved_at") @db.Timestamptz
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy          String?       @map("created_by") @db.Uuid
+  updatedBy          String?       @map("updated_by") @db.Uuid
+  deletedAt          DateTime?     @map("deleted_at") @db.Timestamptz
+  version            Int           @default(1)
+
+  payroll          Payroll                 @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  employee         Employee                @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  componentValues       PayrollComponentValue[]
+  taxComputation        TaxComputation?
+  employerContribution  EmployerContribution?
+  overtimeRecord        OvertimeRecord?
+  payslip               Payslip?
+
+  @@unique([payrollId, employeeId], map: "uq_payroll_calculations_payroll_employee")
+  @@index([employeeId], map: "idx_payroll_calculations_employee_id")
+  @@index([companyId, status], map: "idx_payroll_calculations_company_status")
+  @@map("payroll_calculations")
+}
+
+model PayrollComponentValue {
+  id                   String              @id @default(uuid()) @db.Uuid
+  companyId            String              @map("company_id") @db.Uuid
+  payrollCalculationId String              @map("payroll_calculation_id") @db.Uuid
+  componentCode        String              @map("component_code") @db.VarChar(50)
+  componentName        String              @map("component_name") @db.VarChar(100)
+  componentType        SalaryComponentType @map("component_type")
+  calculationType      SalaryCalculationType @map("calculation_type")
+  amount               Decimal             @default(0) @db.Decimal(15, 2)
+  isEmployerContribution Boolean           @default(false) @map("is_employer_contribution")
+  isPlaceholder        Boolean             @default(false) @map("is_placeholder")
+  sortOrder            Int                 @default(0) @map("sort_order")
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  payrollCalculation PayrollCalculation @relation(fields: [payrollCalculationId], references: [id], onDelete: Cascade)
+
+  @@index([payrollCalculationId], map: "idx_payroll_component_values_calculation")
+  @@map("payroll_component_values")
+}
+
+model PayrollSummary {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  payrollId       String?  @map("payroll_id") @db.Uuid
+  payrollPeriodId String?  @map("payroll_period_id") @db.Uuid
+  totalGross      Decimal  @default(0) @map("total_gross") @db.Decimal(15, 2)
+  totalDeductions Decimal  @default(0) @map("total_deductions") @db.Decimal(15, 2)
+  totalNet        Decimal  @default(0) @map("total_net") @db.Decimal(15, 2)
+  employeeCount   Int      @default(0) @map("employee_count")
+  errorCount      Int      @default(0) @map("error_count")
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll       Payroll?       @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  payrollPeriod PayrollPeriod? @relation(fields: [payrollPeriodId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, payrollPeriodId], map: "idx_payroll_summaries_company_period")
+  @@map("payroll_summaries")
+}
+
+model PayrollCalculationLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  payrollId   String   @map("payroll_id") @db.Uuid
+  action      String   @db.VarChar(50)
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@index([payrollId, createdAt], map: "idx_payroll_calculation_logs_payroll_created")
+  @@map("payroll_calculation_logs")
+}
+
+model PayrollVersion {
+  id                String   @id @default(uuid()) @db.Uuid
+  companyId         String   @map("company_id") @db.Uuid
+  payrollId         String   @map("payroll_id") @db.Uuid
+  versionNumber     Int      @map("version_number")
+  previousVersionId String?  @map("previous_version_id") @db.Uuid
+  snapshot          Json     @default("{}")
+  differenceLog     Json     @default("[]") @map("difference_log")
+  contentHash       String?  @map("content_hash") @db.VarChar(64)
+  changeReason      String?  @map("change_reason") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy         String?  @map("created_by") @db.Uuid
+
+  payroll         Payroll         @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  previousVersion PayrollVersion? @relation("PayrollVersionChain", fields: [previousVersionId], references: [id], onDelete: SetNull)
+  nextVersions    PayrollVersion[] @relation("PayrollVersionChain")
+
+  @@unique([payrollId, versionNumber], map: "uq_payroll_versions_payroll_number")
+  @@map("payroll_versions")
+}

@@ -1,0 +1,2 @@
+-- Enterprise Earnings Engine migration marker
+-- Full DDL applied via prisma db push / migrate from earnings.prisma
