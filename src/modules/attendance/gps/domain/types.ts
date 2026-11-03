@@ -89,6 +89,7 @@ export type LocationHistoryItem = {
   id: string;
   employeeId: string;
   employeeName: string;
+  employeeCode?: string;
   latitude: number;
   longitude: number;
   accuracy: number | null;
@@ -108,6 +109,7 @@ export type GpsDashboardData = {
     gpsEnabled: boolean;
   }>;
   recentLocations: LocationHistoryItem[];
+  currentLocations: LocationHistoryItem[];
   todayGpsPunches: number;
   invalidAttempts: number;
 };

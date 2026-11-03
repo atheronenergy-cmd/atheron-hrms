@@ -93,6 +93,42 @@ export class LocationHistoryService extends BaseRepository {
     return buildPaginatedResult(items, totalItems, page, pageSize);
   }
 
+  async listCurrent() {
+    const companyId = this.requireCompanyId();
+    const rows = await prisma.employeeLocationHistory.findMany({
+      where: { companyId },
+      orderBy: { capturedAt: "desc" },
+      take: 400,
+      include: {
+        employee: {
+          select: { firstName: true, lastName: true, employeeCode: true, employmentStatus: true },
+        },
+      },
+    });
+
+    const items: LocationHistoryItem[] = [];
+    const seen = new Set<string>();
+    for (const row of rows) {
+      if (seen.has(row.employeeId)) continue;
+      if (row.employee.employmentStatus === "resigned" || row.employee.employmentStatus === "terminated") continue;
+      seen.add(row.employeeId);
+      items.push({
+        id: row.id,
+        employeeId: row.employeeId,
+        employeeName: [row.employee.firstName, row.employee.lastName].filter(Boolean).join(" "),
+        employeeCode: row.employee.employeeCode,
+        latitude: Number(row.latitude),
+        longitude: Number(row.longitude),
+        accuracy: row.accuracy != null ? Number(row.accuracy) : null,
+        address: row.address,
+        activityType: row.activityType,
+        capturedAt: row.capturedAt.toISOString(),
+        riskScore: row.riskScore,
+      });
+    }
+    return items;
+  }
+
   async getLatest(employeeId: string) {
     const companyId = this.requireCompanyId();
     return prisma.employeeLocationHistory.findFirst({

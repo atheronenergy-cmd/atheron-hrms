@@ -50,7 +50,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(AUTH_ROUTES.dashboard, req.nextUrl.origin));
   }
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
+  requestHeaders.set("x-request-id", requestId);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("x-request-id", requestId);
 
   for (const [key, value] of Object.entries(securityHeaders)) {

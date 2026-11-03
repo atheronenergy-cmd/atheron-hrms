@@ -4,14 +4,15 @@ import { revalidatePath } from "next/cache";
 
 import { requireAuth } from "@/infrastructure/auth/server";
 import { requirePermission } from "@/infrastructure/authorization/server/guards";
+import { createEmployeeService } from "@/modules/employee/application/employee.service";
 import {
   getActorMeta,
   recordEmployeeAudit,
 } from "@/modules/employee/application/employee-audit.service";
+import { createEmployeeDashboardService } from "@/modules/employee/application/employee-dashboard.service";
 import { createEmployeeExportService } from "@/modules/employee/application/employee-export.service";
 import { createEmployeeLifecycleService } from "@/modules/employee/application/employee-lifecycle.service";
-import { createEmployeeDashboardService } from "@/modules/employee/application/employee-dashboard.service";
-import { createEmployeeService } from "@/modules/employee/application/employee.service";
+import { ensureEmployeeLogin } from "@/modules/employee/application/employee-login.service";
 import { EMPLOYEE_ROUTES } from "@/modules/employee/domain/types";
 import {
   createEmployeeSchema,
@@ -66,6 +67,17 @@ export async function createEmployeeAction(input: unknown): Promise<EmployeeActi
 
     const meta = await getActorMeta();
     const result = await services(companyId).employee.create(parsed.data, auth.id);
+    let loginMessage = "";
+    try {
+      const login = await ensureEmployeeLogin(companyId, result.id, auth.id);
+      loginMessage = login.invited
+        ? " A sign-in invitation was sent to their email."
+        : login.created
+          ? " A login was created. Configure email before the invitation can be sent."
+          : " Linked to the existing login with the same email.";
+    } catch (error) {
+      loginMessage = ` Login was not linked: ${isAppError(error) ? error.message : "unexpected error"}.`;
+    }
 
     await recordEmployeeAudit("employee_created", {
       companyId,
@@ -76,9 +88,27 @@ export async function createEmployeeAction(input: unknown): Promise<EmployeeActi
     });
 
     revalidatePath(EMPLOYEE_ROUTES.list);
-    return { success: true, message: `Employee ${result.employeeCode} created.`, data: { id: result.id, employeeCode: result.employeeCode } };
+    return { success: true, message: `Employee ${result.employeeCode} created.${loginMessage}`, data: { id: result.id, employeeCode: result.employeeCode } };
   } catch (error) {
     return { success: false, message: isAppError(error) ? error.message : "Create failed." };
+  }
+}
+
+export async function enableEmployeeLoginAction(employeeId: string): Promise<EmployeeActionResult> {
+  try {
+    await requirePermission(PERMISSIONS.EMPLOYEE.PROFILE.UPDATE);
+    const auth = await requireAuth();
+    const companyId = requireCompanyId(auth.companyId);
+    const login = await ensureEmployeeLogin(companyId, employeeId, auth.id);
+    revalidatePath(EMPLOYEE_ROUTES.detail(employeeId));
+    const message = login.invited
+      ? `Sign-in invitation sent to ${login.email}.`
+      : login.created
+        ? `Login created for ${login.email}. Configure email before the invitation can be sent.`
+        : `This employee can sign in as ${login.email}.`;
+    return { success: true, message };
+  } catch (error) {
+    return { success: false, message: isAppError(error) ? error.message : "Could not create the employee login." };
   }
 }
 

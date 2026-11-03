@@ -4,6 +4,7 @@ export const ATTENDANCE_ROUTES = {
   corrections: "/dashboard/attendance/corrections",
   rules: "/dashboard/attendance/rules",
   gps: "/dashboard/attendance/gps",
+  me: "/dashboard/attendance/me",
   qr: "/dashboard/attendance/qr",
 } as const;
 

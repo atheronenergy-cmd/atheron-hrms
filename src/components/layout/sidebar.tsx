@@ -8,6 +8,7 @@ import {
   Clock,
   LayoutDashboard,
   type LucideIcon,
+  MapPin,
   Settings,
   Shield,
   UserCog,
@@ -20,6 +21,7 @@ import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/shared/constants/app";
+import { SELF_SERVICE_HOME } from "@/shared/constants/self-service";
 import { hasAnyPermission, hasPermission } from "@/shared/permissions/engine";
 import { usePermissions } from "@/shared/permissions/use-permission";
 
@@ -28,6 +30,7 @@ const iconMap: Record<string, LucideIcon> = {
   Users,
   UserCog,
   Clock,
+  MapPin,
   CalendarDays,
   Wallet,
   Building2,
@@ -41,20 +44,29 @@ export function Sidebar({ className, onNavigate }: { className?: string; onNavig
   const pathname = usePathname();
   const authContext = usePermissions();
 
+  const isEmployee = authContext.scope === "self";
+  const homeHref = isEmployee ? SELF_SERVICE_HOME : "/dashboard";
+
   const visibleItems = useMemo(
     () =>
       NAV_ITEMS.filter((item) => {
+        if (isEmployee && item.staffOnly) return false;
+        if (!isEmployee && item.selfOnly) return false;
         if (item.permission) return hasPermission(authContext, item.permission);
         if (item.permissions) return hasAnyPermission(authContext, item.permissions);
         return true;
       }),
-    [authContext],
+    [authContext, isEmployee],
   );
+
+  const activeHref = visibleItems
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <aside className={cn("flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar", className)}>
       <div className="flex h-14 items-center border-b border-sidebar-border px-4">
-        <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={onNavigate}>
+        <Link href={homeHref} className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={onNavigate}>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
             A
           </div>
@@ -64,7 +76,7 @@ export function Sidebar({ className, onNavigate }: { className?: string; onNavig
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {visibleItems.map((item) => {
           const Icon = iconMap[item.icon] ?? LayoutDashboard;
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive = item.href === activeHref;
           return (
             <Link
               key={item.href}

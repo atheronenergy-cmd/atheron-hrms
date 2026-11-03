@@ -1,9 +1,9 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LocationMap } from "@/modules/attendance/gps/components/location-map";
 import type { GpsDashboardData } from "@/modules/attendance/gps/domain/types";
 import { GPS_ACTIVITY_LABELS } from "@/modules/attendance/gps/domain/types";
-import { LocationMap } from "@/modules/attendance/gps/components/location-map";
 import type { MapMarker } from "@/modules/attendance/gps/infrastructure/map-provider";
 
 type GpsDashboardProps = {
@@ -21,8 +21,8 @@ export function GpsDashboard({ data }: GpsDashboardProps) {
         type: "branch" as const,
         radiusMeters: b.radiusMeters ?? undefined,
       })),
-    ...data.recentLocations.slice(0, 10).map((loc) => ({
-      id: loc.id,
+    ...data.currentLocations.map((loc) => ({
+      id: loc.employeeId,
       coordinates: { latitude: loc.latitude, longitude: loc.longitude },
       label: loc.employeeName,
       type: "employee" as const,
@@ -51,6 +51,34 @@ export function GpsDashboard({ data }: GpsDashboardProps) {
       </div>
 
       <LocationMap markers={markers} />
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Where employees are now</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {data.currentLocations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No live locations yet. They appear after an employee checks in.</p>
+          ) : (
+            data.currentLocations.map((loc) => (
+              <div key={loc.employeeId} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
+                <div>
+                  <p className="font-medium">{loc.employeeName}{loc.employeeCode ? ` · ${loc.employeeCode}` : ""}</p>
+                  <p className="text-muted-foreground">
+                    {GPS_ACTIVITY_LABELS[loc.activityType] ?? loc.activityType} · {loc.capturedAt.slice(0, 16).replace("T", " ")}
+                  </p>
+                </div>
+                <a
+                  className="text-primary underline-offset-4 hover:underline"
+                  href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open map
+                </a>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Location History</CardTitle></CardHeader>

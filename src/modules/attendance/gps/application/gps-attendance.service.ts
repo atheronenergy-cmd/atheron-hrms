@@ -3,11 +3,11 @@ import type { Prisma } from "@prisma/client";
 import { BaseRepository } from "@/infrastructure/database/base-repository";
 import { prisma } from "@/infrastructure/database/prisma-client";
 import { createAttendanceService } from "@/modules/attendance/application/attendance.service";
-import type { GpsDeviceContext, GpsDashboardData, GpsLocationStatus, LocationPermissionState } from "@/modules/attendance/gps/domain/types";
-import { createGeoFenceService } from "@/modules/attendance/gps/application/geo-fence.service";
 import { createFraudDetectionService } from "@/modules/attendance/gps/application/fraud-detection.service";
+import { createGeoFenceService } from "@/modules/attendance/gps/application/geo-fence.service";
 import { createLocationHistoryService } from "@/modules/attendance/gps/application/location-history.service";
 import { locationValidationService } from "@/modules/attendance/gps/application/location-validation.service";
+import type { GpsDashboardData, GpsDeviceContext, GpsLocationStatus, LocationPermissionState } from "@/modules/attendance/gps/domain/types";
 import type { FieldDutyInput, GpsCheckInInput, GpsCheckOutInput } from "@/modules/attendance/gps/validation/schemas";
 import { NotFoundError, ValidationError } from "@/shared/errors";
 
@@ -112,7 +112,8 @@ export class GPSAttendanceService extends BaseRepository {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [branches, recentLocations, todayGpsPunches, invalidAttempts] = await Promise.all([
+    const history = createLocationHistoryService(companyId);
+    const [branches, recentLocations, currentLocations, todayGpsPunches, invalidAttempts] = await Promise.all([
       prisma.branch.findMany({
         where: { companyId, deletedAt: null },
         select: {
@@ -125,7 +126,8 @@ export class GPSAttendanceService extends BaseRepository {
         },
         orderBy: { name: "asc" },
       }),
-      createLocationHistoryService(companyId).list({ page: 1, pageSize: 20 }),
+      history.list({ page: 1, pageSize: 20 }),
+      history.listCurrent(),
       prisma.gpsAttendance.count({ where: { companyId, capturedAt: { gte: todayStart } } }),
       prisma.locationValidationLog.count({
         where: {
@@ -146,6 +148,7 @@ export class GPSAttendanceService extends BaseRepository {
         gpsEnabled: b.gpsAttendanceEnabled,
       })),
       recentLocations: recentLocations.items,
+      currentLocations,
       todayGpsPunches,
       invalidAttempts,
     };

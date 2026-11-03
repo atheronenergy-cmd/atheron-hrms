@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { AttendanceDashboardCards } from "@/modules/attendance/components/attendance-card";
 import { AttendanceTable } from "@/modules/attendance/components/attendance-table";
 import { ATTENDANCE_ROUTES } from "@/modules/attendance/domain/types";
-import { requireAttendanceContext, getEmployeeAttendanceServices } from "@/modules/attendance/server/page-utils";
+import { getEmployeeAttendanceServices,requireAttendanceContext } from "@/modules/attendance/server/page-utils";
 import { PERMISSIONS } from "@/shared/permissions/definitions";
 
 export const metadata = { title: "Attendance" };
@@ -34,7 +34,10 @@ export default async function AttendancePage() {
       <div className="flex items-center justify-between gap-4">
         <PageHeader title="Attendance" description="Track and manage employee attendance" />
         <Button variant="outline" asChild>
-          <Link href={ATTENDANCE_ROUTES.gps}>GPS Attendance</Link>
+          <Link href={ATTENDANCE_ROUTES.me}>My Attendance</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href={ATTENDANCE_ROUTES.gps}>Team locations</Link>
         </Button>
         <Button variant="outline" asChild>
           <Link href={ATTENDANCE_ROUTES.qr}>QR Attendance</Link>
@@ -72,7 +75,7 @@ export default async function AttendancePage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Today's Attendance</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Attendance today</CardTitle></CardHeader>
         <CardContent><AttendanceTable items={list.items} /></CardContent>
       </Card>
 

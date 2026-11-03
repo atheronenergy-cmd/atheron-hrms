@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { logoutAction } from "@/modules/auth/actions/session.actions";
 import { useAuth } from "@/modules/auth/hooks";
 import { AUTH_ROUTES } from "@/shared/constants/auth";
+import { usePermissions } from "@/shared/permissions/use-permission";
 
 function getInitials(name: string): string {
   return name
@@ -29,6 +30,7 @@ function getInitials(name: string): string {
 
 export function UserMenu() {
   const { user, isLoading } = useAuth();
+  const isEmployee = usePermissions().scope === "self";
 
   if (isLoading) {
     return <Skeleton className="h-9 w-9 rounded-full" />;
@@ -54,25 +56,29 @@ export function UserMenu() {
             <p className="text-xs text-muted-foreground">{displayEmail}</p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/settings">
-            <User className="mr-2 h-4 w-4" />
-            Profile
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/settings">
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={AUTH_ROUTES.sessions}>
-            <Monitor className="mr-2 h-4 w-4" />
-            Sessions
-          </Link>
-        </DropdownMenuItem>
+        {isEmployee ? null : (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/settings">
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={AUTH_ROUTES.sessions}>
+                <Monitor className="mr-2 h-4 w-4" />
+                Sessions
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => {
