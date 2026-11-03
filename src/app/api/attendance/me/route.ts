@@ -63,7 +63,11 @@ export async function POST(request: Request) {
     }
 
     const parsed = selfAttendanceSchema.safeParse(await request.json());
-    if (!parsed.success) return apiError("Validation failed", 422);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const where = issue?.path.length ? issue.path.join(".") : "";
+      return apiError(where && issue ? `${where}: ${issue.message}` : "Validation failed", 422);
+    }
 
     const meta = getRequestMeta(request);
     const actorMeta = await getGpsActorMeta();

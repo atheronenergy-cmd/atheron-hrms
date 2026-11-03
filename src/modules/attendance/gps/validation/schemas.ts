@@ -16,18 +16,31 @@ export const gpsActivityTypeSchema = z.enum([
 
 export const locationPermissionStateSchema = z.enum(["granted", "denied", "revoked", "unavailable"]);
 
+const GPS_ACCURACY_MAX = 999_999.99;
+
 export const gpsCoordinatesSchema = z.object({
   latitude: z.coerce.number().min(-90).max(90),
   longitude: z.coerce.number().min(-180).max(180),
-  accuracy: z.coerce.number().min(0).max(10000).optional(),
-  altitude: z.coerce.number().optional(),
+  accuracy: z.preprocess((value) => {
+    if (value == null || value === "") return undefined;
+    const number = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(number) || number < 0) return value;
+    return Math.min(number, GPS_ACCURACY_MAX);
+  }, z.number().min(0).max(GPS_ACCURACY_MAX).optional()),
+  altitude: z.preprocess(
+    (value) => (value == null || value === "" ? undefined : value),
+    z.coerce.number().optional(),
+  ),
   address: z.string().max(500).optional(),
   timestamp: z.coerce.date().optional(),
 });
 
 export const gpsDeviceInfoSchema = z.object({
   deviceId: z.string().max(100).optional(),
-  deviceModel: z.string().max(100).optional(),
+  deviceModel: z.preprocess(
+    (value) => (typeof value === "string" ? value.slice(0, 512) : value),
+    z.string().max(512).optional(),
+  ),
   os: z.string().max(50).optional(),
   appVersion: z.string().max(30).optional(),
   isMockLocation: z.boolean().optional(),
