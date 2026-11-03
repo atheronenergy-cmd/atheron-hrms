@@ -6,8 +6,7 @@ const DEFAULT_ADMIN_PASSWORD = "Admin@Atheron123";
 
 export async function seedAdminUser(prisma: PrismaClient, companyId: string) {
   const email = (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAIL).toLowerCase();
-  const password = process.env.ADMIN_PASSWORD ?? DEFAULT_ADMIN_PASSWORD;
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordFromEnv = process.env.ADMIN_PASSWORD;
 
   const superAdminRole = await prisma.role.findFirst({
     where: { slug: "super_admin", companyId: null },
@@ -17,12 +16,21 @@ export async function seedAdminUser(prisma: PrismaClient, companyId: string) {
     throw new Error("Super Admin role not found. Seed roles first.");
   }
 
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (!existing && !passwordFromEnv && process.env.NODE_ENV === "production") {
+    throw new Error("Set ADMIN_PASSWORD before seeding a production database.");
+  }
+
+  const password = passwordFromEnv ?? DEFAULT_ADMIN_PASSWORD;
+  const passwordHash =
+    !existing || passwordFromEnv ? await bcrypt.hash(password, 12) : existing.passwordHash;
+
   const user = await prisma.user.upsert({
     where: { email },
     update: {
       name: "System Administrator",
-      passwordHash,
-      emailVerified: new Date(),
+      ...(!existing || passwordFromEnv ? { passwordHash } : {}),
+      emailVerified: existing?.emailVerified ?? new Date(),
       status: "active",
       companyId,
     },
@@ -35,6 +43,10 @@ export async function seedAdminUser(prisma: PrismaClient, companyId: string) {
       companyId,
     },
   });
+
+  if (!existing && !passwordFromEnv) {
+    console.warn("Created the admin user with the development default password. Set ADMIN_PASSWORD before any shared deployment.");
+  }
 
   const existingAssignment = await prisma.userRole.findFirst({
     where: { userId: user.id, roleId: superAdminRole.id },

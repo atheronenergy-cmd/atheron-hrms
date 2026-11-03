@@ -20,3 +20,25 @@ export function formatRelative(date: Date | string): string {
 export function toISODate(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
+
+/** Calendar date (YYYY-MM-DD) in a company timezone, independent of the server clock zone. */
+export function zonedIsoDate(date: Date, timeZone: string): string {
+  const zone = safeTimeZone(timeZone);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: zone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "01";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+function safeTimeZone(timeZone: string) {
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+    return timeZone;
+  } catch {
+    return "Asia/Kolkata";
+  }
+}

@@ -2,6 +2,13 @@ import type { SalaryComponent } from "@prisma/client";
 
 import { BaseRepository } from "@/infrastructure/database/base-repository";
 import { prisma } from "@/infrastructure/database/prisma-client";
+import type { EarningsCalculationResult } from "@/modules/earnings/domain/types";
+import { EARNINGS_CODE_ALIASES, EARNINGS_COMPONENT_CODES } from "@/modules/earnings/domain/types";
+import type { RecoveryCalculationResult } from "@/modules/loan-recovery/domain/types";
+import {
+  LOAN_RECOVERY_CODE_ALIASES,
+  LOAN_RECOVERY_COMPONENT_CODES,
+} from "@/modules/loan-recovery/domain/types";
 import { createPayrollAttendanceIntegrationService } from "@/modules/payroll/application/payroll-attendance-integration.service";
 import { createPayrollEarningsIntegrationService } from "@/modules/payroll/application/payroll-earnings-integration.service";
 import { createPayrollLeaveIntegrationService } from "@/modules/payroll/application/payroll-leave-integration.service";
@@ -11,15 +18,8 @@ import { payrollValidationService } from "@/modules/payroll/application/payroll-
 import { salaryFormulaEngine } from "@/modules/payroll/application/salary-formula.service";
 import type { PayrollCalculationResult } from "@/modules/payroll/domain/types";
 import { PLACEHOLDER_COMPONENT_CODES } from "@/modules/payroll/domain/types";
-import { EARNINGS_CODE_ALIASES, EARNINGS_COMPONENT_CODES } from "@/modules/earnings/domain/types";
-import type { EarningsCalculationResult } from "@/modules/earnings/domain/types";
-import { STATUTORY_CODE_ALIASES, STATUTORY_COMPONENT_CODES } from "@/modules/statutory/domain/types";
 import type { StatutoryCalculationResult } from "@/modules/statutory/domain/types";
-import type { RecoveryCalculationResult } from "@/modules/loan-recovery/domain/types";
-import {
-  LOAN_RECOVERY_CODE_ALIASES,
-  LOAN_RECOVERY_COMPONENT_CODES,
-} from "@/modules/loan-recovery/domain/types";
+import { STATUTORY_CODE_ALIASES, STATUTORY_COMPONENT_CODES } from "@/modules/statutory/domain/types";
 import { NotFoundError } from "@/shared/errors";
 
 function round2(n: number) {
@@ -201,7 +201,9 @@ export class PayrollCalculationService extends BaseRepository {
     const deductions = round2(computed.filter((c) => c.type === "deduction").reduce((s, c) => s + c.amount, 0));
 
     if (attendance.lateCount > 0) {
-      warnings.push(`Late attendance count: ${attendance.lateCount} (late deduction placeholder)`);
+      warnings.push(
+        `Late attendance: ${attendance.lateCount} day(s). No monetary late penalty is configured, so these marks are recorded and not deducted.`,
+      );
     }
 
     const net = round2(gross - deductions);

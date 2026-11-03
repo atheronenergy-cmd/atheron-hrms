@@ -7,6 +7,11 @@ import { PERMISSIONS } from "@/shared/permissions/definitions";
 
 type RouteParams = { params: Promise<{ key: string[] }> };
 
+function safeDownloadName(name: string) {
+  const cleaned = name.replace(/[\r\n"]/g, "").replace(/[^\w.\- ()]/g, "_").slice(0, 180);
+  return cleaned || "download";
+}
+
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const auth = await requirePermission(PERMISSIONS.DOCUMENT.FILE.READ);
@@ -34,10 +39,12 @@ export async function GET(_request: Request, { params }: RouteParams) {
     }
 
     const buffer = await provider.download(storageKey);
+    const filename = safeDownloadName(file.originalName);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": file.mimeType ?? "application/octet-stream",
-        "Content-Disposition": `inline; filename="${file.originalName}"`,
+        "Content-Disposition": `inline; filename="${filename}"`,
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, max-age=3600",
       },
     });

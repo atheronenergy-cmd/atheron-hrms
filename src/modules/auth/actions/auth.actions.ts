@@ -14,7 +14,7 @@ import {
   isTokenExpired,
 } from "@/infrastructure/auth/token.service";
 import { prisma } from "@/infrastructure/database/prisma-client";
-import { emailProvider } from "@/infrastructure/email/email-provider";
+import { emailProvider, isEmailConfigured } from "@/infrastructure/email/email-provider";
 import {
   emailVerificationTemplate,
   passwordResetEmailTemplate,
@@ -57,6 +57,10 @@ export async function forgotPasswordAction(input: { email: string }): Promise<Au
 
   if (!rateLimit.allowed) {
     return { success: false, message: "Too many reset requests. Please try again later." };
+  }
+
+  if (process.env.NODE_ENV === "production" && !isEmailConfigured()) {
+    return { success: false, message: "Password reset email is not available. Contact your administrator." };
   }
 
   const user = await prisma.user.findFirst({
@@ -221,6 +225,10 @@ export async function resendVerificationAction(input: { email: string }): Promis
 
   if (!rateLimit.allowed) {
     return { success: false, message: "Too many verification requests. Please try again later." };
+  }
+
+  if (process.env.NODE_ENV === "production" && !isEmailConfigured()) {
+    return { success: false, message: "Verification email is not available. Contact your administrator." };
   }
 
   const user = await prisma.user.findFirst({

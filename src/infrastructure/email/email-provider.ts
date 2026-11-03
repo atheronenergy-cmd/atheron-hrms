@@ -1,4 +1,5 @@
 import { createResendEmailProvider } from "@/infrastructure/email/resend-email-provider";
+import { BusinessRuleError } from "@/shared/errors";
 
 export type EmailAttachment = {
   filename: string;
@@ -19,6 +20,9 @@ export interface EmailProvider {
 
 export class ConsoleEmailProvider implements EmailProvider {
   async send(to: string, subject: string, body: string, options?: EmailSendOptions): Promise<void> {
+    if (process.env.NODE_ENV === "production") {
+      throw new BusinessRuleError("Email delivery is not configured. Set RESEND_API_KEY and RESEND_FROM.");
+    }
     console.info("[EMAIL]", {
       to,
       subject,
@@ -28,13 +32,19 @@ export class ConsoleEmailProvider implements EmailProvider {
   }
 }
 
+export function assertEmailDelivery(): void {
+  if (process.env.NODE_ENV === "production" && !isEmailConfigured()) {
+    throw new BusinessRuleError("Email delivery is not configured. Set RESEND_API_KEY and RESEND_FROM.");
+  }
+}
+
 function buildEmailProvider(): EmailProvider {
   if (process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM?.trim()) {
     return createResendEmailProvider();
   }
 
   if (process.env.NODE_ENV === "production") {
-    console.warn("[EMAIL] RESEND_API_KEY or RESEND_FROM is not set. Emails will be logged to console only.");
+    console.warn("[EMAIL] RESEND_API_KEY or RESEND_FROM is not set. Outbound email will fail until both are set.");
   }
 
   return new ConsoleEmailProvider();

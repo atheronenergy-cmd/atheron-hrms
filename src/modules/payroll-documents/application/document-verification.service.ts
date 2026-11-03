@@ -1,10 +1,9 @@
-import { createHash } from "crypto";
-
+import type { PayrollDocumentType } from "@prisma/client";
+import { createHash, timingSafeEqual } from "crypto";
 import QRCode from "qrcode";
 
 import { BaseRepository } from "@/infrastructure/database/base-repository";
 import { prisma } from "@/infrastructure/database/prisma-client";
-import type { PayrollDocumentType } from "@prisma/client";
 
 export class DocumentVerificationService extends BaseRepository {
   async create(params: {
@@ -41,7 +40,7 @@ export class DocumentVerificationService extends BaseRepository {
       where: { companyId, documentNumber, isValid: true },
     });
     if (!row) return { valid: false, message: "Document not found" };
-    if (verificationHash && row.verificationHash !== verificationHash) {
+    if (verificationHash && !hashesMatch(row.verificationHash, verificationHash)) {
       return { valid: false, message: "Verification hash mismatch" };
     }
     await prisma.payrollDocumentVerification.update({
@@ -61,6 +60,13 @@ export class DocumentVerificationService extends BaseRepository {
     if (!this.companyId) throw new Error("Company context required");
     return this.companyId;
   }
+}
+
+function hashesMatch(expected: string, provided: string) {
+  const left = Buffer.from(expected);
+  const right = Buffer.from(provided);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
 }
 
 export function createDocumentVerificationService(companyId: string) {

@@ -9,15 +9,22 @@ export const securityHeaders = {
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
 } as const;
 
-export const contentSecurityPolicy = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "frame-ancestors 'none'",
-].join("; ");
+export function buildContentSecurityPolicy() {
+  const scriptSrc =
+    process.env.NODE_ENV === "production"
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-eval' 'unsafe-inline'";
+
+  return [
+    "default-src 'self'",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+}
 
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 

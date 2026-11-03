@@ -1,5 +1,4 @@
 import { prisma } from "@/infrastructure/database";
-import { handleApiError } from "@/shared/errors";
 
 export async function GET() {
   try {
@@ -13,6 +12,16 @@ export async function GET() {
       },
     });
   } catch (error) {
-    return handleApiError(error);
+    console.error("Health check failed:", error);
+    return Response.json(
+      {
+        success: false,
+        data: {
+          status: "unhealthy",
+          timestamp: new Date().toISOString(),
+        },
+      },
+      { status: 503 },
+    );
   }
 }

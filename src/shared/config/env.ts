@@ -41,7 +41,7 @@ function loadEnv(): Env {
   }
 
   if (parsed.data.NODE_ENV === "production") {
-    const requiredInProd = ["DATABASE_URL", "AUTH_SECRET"] as const;
+    const requiredInProd = ["DATABASE_URL", "AUTH_SECRET", "ENCRYPTION_KEY"] as const;
     const missing = requiredInProd.filter((key) => !process.env[key]);
     if (missing.length > 0) {
       throw new Error(`Missing required production environment variables: ${missing.join(", ")}`);

@@ -8,7 +8,7 @@ import {
   isTokenExpired,
 } from "@/infrastructure/auth/token.service";
 import { prisma } from "@/infrastructure/database/prisma-client";
-import { emailProvider } from "@/infrastructure/email/email-provider";
+import { assertEmailDelivery, emailProvider } from "@/infrastructure/email/email-provider";
 import { userInvitationEmailTemplate } from "@/infrastructure/email/templates/user-email.templates";
 import { recordUserAudit } from "@/modules/user/application/user-audit.service";
 import { INVITATION_EXPIRY_HOURS } from "@/modules/user/domain/types";
@@ -21,6 +21,7 @@ function getInvitationExpiry(): Date {
 
 export class InvitationService {
   async sendInvitation(userId: string, invitedBy: string): Promise<void> {
+    assertEmailDelivery();
     const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
     if (!user) throw new NotFoundError("User", userId);
 
@@ -97,6 +98,7 @@ export class InvitationService {
   }
 
   async resendVerification(userId: string, actorUserId: string): Promise<void> {
+    assertEmailDelivery();
     const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
     if (!user) throw new NotFoundError("User", userId);
 

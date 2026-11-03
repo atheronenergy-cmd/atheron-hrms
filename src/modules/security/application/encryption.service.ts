@@ -3,8 +3,16 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypt
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 
+const DEV_ENCRYPTION_KEY = "dev-only-32-byte-key-change-me!!";
+
 function getEncryptionKey(): Buffer {
-  const raw = process.env.ENCRYPTION_KEY ?? "dev-only-32-byte-key-change-me!!";
+  const raw = process.env.ENCRYPTION_KEY;
+  if (!raw || raw.length < 32) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("ENCRYPTION_KEY must be at least 32 characters in production");
+    }
+    return createHash("sha256").update(DEV_ENCRYPTION_KEY).digest();
+  }
   return createHash("sha256").update(raw).digest();
 }
 

@@ -1,11 +1,17 @@
-import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 
-import { decryptValue, encryptValue } from "@/modules/security/application/encryption.service";
 import type { QrPayload } from "@/modules/attendance/qr/domain/types";
+import { decryptValue, encryptValue } from "@/modules/security/application/encryption.service";
 import { ValidationError } from "@/shared/errors";
 
 function getSigningKey(): Buffer {
-  const raw = process.env.QR_SIGNING_KEY ?? process.env.ENCRYPTION_KEY ?? "dev-only-32-byte-key-change-me!!";
+  const raw = process.env.QR_SIGNING_KEY || process.env.ENCRYPTION_KEY;
+  if (!raw || raw.length < 32) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Set QR_SIGNING_KEY or ENCRYPTION_KEY before using QR attendance in production");
+    }
+    return createHash("sha256").update("qr-attendance:dev-only-32-byte-key-change-me!!").digest();
+  }
   return createHash("sha256").update(`qr-attendance:${raw}`).digest();
 }
 

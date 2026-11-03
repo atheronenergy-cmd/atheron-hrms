@@ -4,7 +4,7 @@ import {
   hashToken,
 } from "@/infrastructure/auth/token.service";
 import { prisma } from "@/infrastructure/database/prisma-client";
-import { emailProvider } from "@/infrastructure/email/email-provider";
+import { assertEmailDelivery, emailProvider } from "@/infrastructure/email/email-provider";
 import { passwordResetEmailTemplate } from "@/infrastructure/email/templates/auth-email.templates";
 import { recordUserAudit } from "@/modules/user/application/user-audit.service";
 import { createUserAdminRepository } from "@/modules/user/infrastructure/repositories/prisma-user-admin.repository";
@@ -19,6 +19,7 @@ export class UserSecurityService {
   }
 
   async resetPassword(userId: string, actorUserId: string): Promise<void> {
+    assertEmailDelivery();
     const user = await this.repo().findByIdWithRoles(userId);
     if (!user) throw new NotFoundError("User", userId);
 
