@@ -16,11 +16,15 @@ type Coords = {
 
 function readPosition() {
   return new Promise<GeolocationCoordinates>((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      maximumAge: 5_000,
-      timeout: 15_000,
-    });
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve(position.coords),
+      reject,
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5_000,
+        timeout: 15_000,
+      },
+    );
   });
 }
 
