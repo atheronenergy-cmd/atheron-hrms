@@ -110,8 +110,24 @@ export type GpsDashboardData = {
   }>;
   recentLocations: LocationHistoryItem[];
   currentLocations: LocationHistoryItem[];
+  liveShares: LiveLocationShare[];
   todayGpsPunches: number;
   invalidAttempts: number;
 };
 
 export const MIN_GPS_ACCURACY_METERS = 100;
+
+/** A check-in stays shareable for this long if the employee never checks out. */
+export const LIVE_SHARE_WINDOW_MS = 18 * 60 * 60 * 1000;
+
+export type LiveLocationShare = {
+  employeeId: string;
+  employeeName: string;
+  employeeCode: string;
+  sharingSince: string;
+  latitude: number | null;
+  longitude: number | null;
+  accuracy: number | null;
+  capturedAt: string | null;
+  activityType: string | null;
+};

@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 
 import { BaseRepository } from "@/infrastructure/database/base-repository";
 import { prisma } from "@/infrastructure/database/prisma-client";
-import type { LocationHistoryItem } from "@/modules/attendance/gps/domain/types";
+import { LIVE_SHARE_WINDOW_MS, type LiveLocationShare, type LocationHistoryItem } from "@/modules/attendance/gps/domain/types";
 import type { LocationHistoryQueryInput } from "@/modules/attendance/gps/validation/schemas";
 import { buildPaginatedResult } from "@/shared/pagination";
 
@@ -127,6 +127,72 @@ export class LocationHistoryService extends BaseRepository {
       });
     }
     return items;
+  }
+
+  async listLiveShares(): Promise<LiveLocationShare[]> {
+    const companyId = this.requireCompanyId();
+    const since = new Date(Date.now() - LIVE_SHARE_WINDOW_MS);
+    const logs = await prisma.attendanceLog.findMany({
+      where: {
+        companyId,
+        punchedAt: { gte: since },
+        punchType: { in: ["in", "out"] },
+      },
+      orderBy: { punchedAt: "desc" },
+      include: {
+        employee: {
+          select: { firstName: true, lastName: true, employeeCode: true, employmentStatus: true },
+        },
+      },
+    });
+
+    const latestPunch = new Map<string, (typeof logs)[number]>();
+    for (const log of logs) {
+      if (!latestPunch.has(log.employeeId)) latestPunch.set(log.employeeId, log);
+    }
+
+    const active = [...latestPunch.values()].filter(
+      (log) =>
+        log.punchType === "in" &&
+        log.employee.employmentStatus !== "resigned" &&
+        log.employee.employmentStatus !== "terminated",
+    );
+    if (active.length === 0) return [];
+
+    const earliest = active.reduce(
+      (min, log) => (log.punchedAt < min ? log.punchedAt : min),
+      active[0]!.punchedAt,
+    );
+    const locations = await prisma.employeeLocationHistory.findMany({
+      where: {
+        companyId,
+        employeeId: { in: active.map((log) => log.employeeId) },
+        capturedAt: { gte: earliest },
+      },
+      orderBy: { capturedAt: "desc" },
+    });
+
+    const latestLocation = new Map<string, (typeof locations)[number]>();
+    for (const location of locations) {
+      const punch = latestPunch.get(location.employeeId);
+      if (!punch || location.capturedAt < punch.punchedAt) continue;
+      if (!latestLocation.has(location.employeeId)) latestLocation.set(location.employeeId, location);
+    }
+
+    return active.map((log) => {
+      const location = latestLocation.get(log.employeeId);
+      return {
+        employeeId: log.employeeId,
+        employeeName: [log.employee.firstName, log.employee.lastName].filter(Boolean).join(" "),
+        employeeCode: log.employee.employeeCode,
+        sharingSince: log.punchedAt.toISOString(),
+        latitude: location ? Number(location.latitude) : null,
+        longitude: location ? Number(location.longitude) : null,
+        accuracy: location?.accuracy != null ? Number(location.accuracy) : null,
+        capturedAt: location?.capturedAt.toISOString() ?? null,
+        activityType: location?.activityType ?? null,
+      };
+    });
   }
 
   async getLatest(employeeId: string) {

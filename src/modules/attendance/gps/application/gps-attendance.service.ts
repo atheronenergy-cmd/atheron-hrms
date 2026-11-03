@@ -113,7 +113,7 @@ export class GPSAttendanceService extends BaseRepository {
     todayStart.setHours(0, 0, 0, 0);
 
     const history = createLocationHistoryService(companyId);
-    const [branches, recentLocations, currentLocations, todayGpsPunches, invalidAttempts] = await Promise.all([
+    const [branches, recentLocations, liveShares, todayGpsPunches, invalidAttempts] = await Promise.all([
       prisma.branch.findMany({
         where: { companyId, deletedAt: null },
         select: {
@@ -127,7 +127,7 @@ export class GPSAttendanceService extends BaseRepository {
         orderBy: { name: "asc" },
       }),
       history.list({ page: 1, pageSize: 20 }),
-      history.listCurrent(),
+      history.listLiveShares(),
       prisma.gpsAttendance.count({ where: { companyId, capturedAt: { gte: todayStart } } }),
       prisma.locationValidationLog.count({
         where: {
@@ -148,7 +148,24 @@ export class GPSAttendanceService extends BaseRepository {
         gpsEnabled: b.gpsAttendanceEnabled,
       })),
       recentLocations: recentLocations.items,
-      currentLocations,
+      currentLocations: liveShares.flatMap((share) =>
+        share.latitude == null || share.longitude == null || !share.capturedAt
+          ? []
+          : [{
+              id: share.employeeId,
+              employeeId: share.employeeId,
+              employeeName: share.employeeName,
+              employeeCode: share.employeeCode,
+              latitude: share.latitude,
+              longitude: share.longitude,
+              accuracy: share.accuracy,
+              address: null,
+              activityType: share.activityType ?? "location_punch",
+              capturedAt: share.capturedAt,
+              riskScore: 0,
+            }],
+      ),
+      liveShares,
       todayGpsPunches,
       invalidAttempts,
     };

@@ -16,7 +16,7 @@ export default async function GpsAttendancePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <PageHeader title="GPS Attendance" description="Live location tracking, geo-fencing, and visit history" />
+        <PageHeader title="GPS Attendance" description="Live locations while employees are checked in. Sharing stops at check-out." />
         <Button variant="outline" asChild>
           <Link href={ATTENDANCE_ROUTES.list}>Back to Attendance</Link>
         </Button>

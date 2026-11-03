@@ -1,34 +1,15 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LocationMap } from "@/modules/attendance/gps/components/location-map";
+import { LiveLocationBoard } from "@/modules/attendance/gps/components/live-location-board";
 import type { GpsDashboardData } from "@/modules/attendance/gps/domain/types";
 import { GPS_ACTIVITY_LABELS } from "@/modules/attendance/gps/domain/types";
-import type { MapMarker } from "@/modules/attendance/gps/infrastructure/map-provider";
 
 type GpsDashboardProps = {
   data: GpsDashboardData;
 };
 
 export function GpsDashboard({ data }: GpsDashboardProps) {
-  const markers: MapMarker[] = [
-    ...data.branches
-      .filter((b) => b.latitude != null && b.longitude != null)
-      .map((b) => ({
-        id: b.id,
-        coordinates: { latitude: b.latitude!, longitude: b.longitude! },
-        label: b.name,
-        type: "branch" as const,
-        radiusMeters: b.radiusMeters ?? undefined,
-      })),
-    ...data.currentLocations.map((loc) => ({
-      id: loc.employeeId,
-      coordinates: { latitude: loc.latitude, longitude: loc.longitude },
-      label: loc.employeeName,
-      type: "employee" as const,
-    })),
-  ];
-
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -50,35 +31,7 @@ export function GpsDashboard({ data }: GpsDashboardProps) {
         </Card>
       </div>
 
-      <LocationMap markers={markers} />
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">Where employees are now</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {data.currentLocations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No live locations yet. They appear after an employee checks in.</p>
-          ) : (
-            data.currentLocations.map((loc) => (
-              <div key={loc.employeeId} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
-                <div>
-                  <p className="font-medium">{loc.employeeName}{loc.employeeCode ? ` · ${loc.employeeCode}` : ""}</p>
-                  <p className="text-muted-foreground">
-                    {GPS_ACTIVITY_LABELS[loc.activityType] ?? loc.activityType} · {loc.capturedAt.slice(0, 16).replace("T", " ")}
-                  </p>
-                </div>
-                <a
-                  className="text-primary underline-offset-4 hover:underline"
-                  href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open map
-                </a>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+      <LiveLocationBoard initial={data.liveShares} />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Location History</CardTitle></CardHeader>

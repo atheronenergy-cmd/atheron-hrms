@@ -276,7 +276,10 @@ export class PayrollCalculationService extends BaseRepository {
     let amount = 0;
     switch (comp.calculationType) {
       case "fixed":
-        amount = Number(comp.amount);
+        amount =
+          (code === "BASIC" || code === "BASE" || code === "BASE_SALARY") && Number(comp.amount) === 0
+            ? (context.BASIC ?? context.BASE_SALARY ?? 0)
+            : Number(comp.amount);
         break;
       case "percentage": {
         const base = context[(comp.percentageOf ?? "BASIC").toUpperCase()] ?? context.BASIC ?? 0;

@@ -44,7 +44,8 @@ Open [http://localhost:3000](http://localhost:3000)
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format with Prettier |
 | `npm run typecheck` | TypeScript check |
-| `npm run db:migrate` | Run Prisma migrations |
+| `npm run db:migrate` | Create and apply migrations in development |
+| `npm run db:migrate:deploy` | Apply migrations in production |
 | `npm run db:seed` | Seed database |
 
 ## Architecture
@@ -93,22 +94,18 @@ Each folder contains a `README.md` explaining its purpose.
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
+npm run db:migrate:deploy
 npm run build
 npm run start
 ```
 
+Production requires `DATABASE_URL`, `AUTH_SECRET` (32+ characters), and `ENCRYPTION_KEY` (32+ characters). Set `RESEND_API_KEY` and `RESEND_FROM` before relying on password reset, invitations, or payslip email. Set `ADMIN_PASSWORD` before seeding a production database. Do not reuse the sample values in `.env.example`.
+
 ## Current Phase
 
-**Phase 1 — Foundation** (Complete)
+Core HR is implemented for live company use: authentication, employees, attendance (manual, GPS, QR), leave, payroll, statutory, loans, earnings, and payslips. The home dashboard and reports hub read live company data.
 
-- Project scaffolding
-- Design system and layout shell
-- Prisma configured (no business tables)
-- Permission engine architecture
-- Audit and logging abstractions
-- Storage provider abstraction
-
-**Next:** Phase 2 — Authentication & Core HR modules
+Still outside day-to-day payroll operations: recruitment, training, performance, assets, expenses, and a camera QR scanner. Late marks are recorded and are not deducted, because no late-penalty amount is configured.
 
 ## License
 

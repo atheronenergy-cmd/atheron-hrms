@@ -6,7 +6,7 @@ import { requireAuth } from "@/infrastructure/auth/server";
 import { requirePermission } from "@/infrastructure/authorization/server/guards";
 import { getSalaryServices } from "@/modules/payroll/application/employee-salary.service";
 import { getSalaryActorMeta, recordSalaryAudit } from "@/modules/payroll/application/salary-audit.service";
-import { SALARY_ROUTES } from "@/modules/payroll/domain/types";
+import { SALARY_ROUTES, DEFAULT_DEDUCTION_COMPONENTS, DEFAULT_EARNING_COMPONENTS } from "@/modules/payroll/domain/types";
 import {
   employeeSalarySchema,
   payGradeSchema,
@@ -152,6 +152,65 @@ export async function createPayGradeAction(input: unknown): Promise<SalaryAction
     return { success: true, message: "Pay grade created." };
   } catch (error) {
     return { success: false, message: isAppError(error) ? error.message : "Create failed." };
+  }
+}
+
+export async function addStandardSalaryComponentsAction(input: unknown): Promise<SalaryActionResult<{ created: number }>> {
+  try {
+    await requirePermission(PERMISSIONS.PAYROLL.SALARY.CREATE);
+    const auth = await requireAuth();
+    const companyId = requireCompanyId(auth.companyId);
+    const salaryStructureId = typeof input === "object" && input && "salaryStructureId" in input ? String(input.salaryStructureId) : "";
+    if (!salaryStructureId) return { success: false, message: "Choose a salary structure." };
+
+    const existing = await svc(companyId).component.list({ salaryStructureId, page: 1, pageSize: 100 });
+    const codes = new Set(existing.items.map((item) => item.code.toUpperCase()));
+    let created = 0;
+    const skipped: string[] = [];
+    let sortOrder = existing.items.length;
+
+    const lines = [
+      ...DEFAULT_EARNING_COMPONENTS.map((line) => ({ ...line, componentType: "earning" as const, affectsGross: true })),
+      ...DEFAULT_DEDUCTION_COMPONENTS.map((line) => ({ ...line, componentType: "deduction" as const, affectsGross: false })),
+    ];
+
+    for (const line of lines) {
+      if (codes.has(line.code)) continue;
+      try {
+        await svc(companyId).component.create(
+          {
+            salaryStructureId,
+            name: line.name,
+            code: line.code,
+            componentType: line.componentType,
+            calculationType: line.calculationType,
+            amount: 0,
+            percentageOf: "percentageOf" in line ? line.percentageOf : undefined,
+            percentageValue: "percentageValue" in line ? line.percentageValue : undefined,
+            formulaExpression: "formulaExpression" in line ? line.formulaExpression : undefined,
+            isTaxable: line.componentType === "earning",
+            isEmployerContribution: false,
+            affectsGross: line.affectsGross,
+            sortOrder,
+          },
+          auth.id,
+        );
+        sortOrder += 1;
+        created += 1;
+      } catch {
+        skipped.push(line.code);
+      }
+    }
+
+    revalidateSalary();
+    const skipNote = skipped.length ? ` Skipped ${skipped.join(", ")}.` : "";
+    return {
+      success: true,
+      message: created ? `Added ${created} standard pay lines.${skipNote}` : `Those pay lines are already on this structure.${skipNote}`,
+      data: { created },
+    };
+  } catch (error) {
+    return { success: false, message: isAppError(error) ? error.message : "Could not add standard pay lines." };
   }
 }
 

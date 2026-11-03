@@ -37,7 +37,7 @@ export default async function AttendancePage() {
           <Link href={ATTENDANCE_ROUTES.me}>My Attendance</Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link href={ATTENDANCE_ROUTES.gps}>Team locations</Link>
+          <Link href={ATTENDANCE_ROUTES.gps}>Live locations</Link>
         </Button>
         <Button variant="outline" asChild>
           <Link href={ATTENDANCE_ROUTES.qr}>QR Attendance</Link>

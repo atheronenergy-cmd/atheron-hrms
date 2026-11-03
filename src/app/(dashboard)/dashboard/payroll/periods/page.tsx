@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { authorizationService } from "@/infrastructure/authorization/authorization.service";
+import { PayrollPeriodForm } from "@/modules/payroll/components/payroll-editor";
 import { PAYROLL_ROUTES } from "@/modules/payroll/domain/types";
 import { requirePayrollContext, getPayrollServices } from "@/modules/payroll/server/page-utils";
 import { PERMISSIONS } from "@/shared/permissions/definitions";
@@ -10,15 +12,22 @@ import { PERMISSIONS } from "@/shared/permissions/definitions";
 export const metadata = { title: "Payroll Periods" };
 
 export default async function PayrollPeriodsPage() {
-  const { companyId } = await requirePayrollContext(PERMISSIONS.PAYROLL.VIEW);
+  const { auth, companyId } = await requirePayrollContext(PERMISSIONS.PAYROLL.VIEW);
+  const canCreate = await authorizationService.hasPermission(auth.id, PERMISSIONS.PAYROLL.GENERATE, companyId);
   const list = await getPayrollServices(companyId).period.list({ page: 1, pageSize: 50 });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <PageHeader title="Payroll Period Management" description="Monthly, weekly, bi-weekly, and custom periods" />
+        <PageHeader title="Payroll Period Management" description="Create the month payroll will be calculated for" />
         <Button variant="outline" asChild><Link href={PAYROLL_ROUTES.dashboard}>Back</Link></Button>
       </div>
+      {canCreate ? (
+        <Card>
+          <CardHeader><CardTitle className="text-base">New month</CardTitle></CardHeader>
+          <CardContent><PayrollPeriodForm /></CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardHeader><CardTitle className="text-base">Periods ({list.meta.totalItems})</CardTitle></CardHeader>
         <CardContent className="space-y-2">

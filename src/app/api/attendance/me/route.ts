@@ -5,6 +5,7 @@ import { prisma } from "@/infrastructure/database/prisma-client";
 import { getGpsAttendanceServices } from "@/modules/attendance/gps/application/gps-attendance.service";
 import { getGpsActorMeta, recordGpsAudit } from "@/modules/attendance/gps/application/gps-audit.service";
 import { apiError, apiSuccess, getRequestMeta } from "@/modules/attendance/gps/server/api-utils";
+import { LIVE_SHARE_WINDOW_MS } from "@/modules/attendance/gps/domain/types";
 import { gpsCoordinatesSchema, gpsDeviceInfoSchema, locationPermissionStateSchema } from "@/modules/attendance/gps/validation/schemas";
 import { handleApiError } from "@/shared/errors";
 
@@ -14,6 +15,37 @@ const selfAttendanceSchema = z.object({
   permissionState: locationPermissionStateSchema.default("granted"),
   deviceInfo: gpsDeviceInfoSchema.optional(),
 });
+
+export async function GET() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id || !session.user.companyId) {
+      return apiError("Authentication required", 401);
+    }
+
+    const employee = await prisma.employee.findFirst({
+      where: { userId: session.user.id, companyId: session.user.companyId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!employee) return apiSuccess({ checkedIn: false });
+
+    const since = new Date(Date.now() - LIVE_SHARE_WINDOW_MS);
+    const latest = await prisma.attendanceLog.findFirst({
+      where: {
+        companyId: session.user.companyId,
+        employeeId: employee.id,
+        punchType: { in: ["in", "out"] },
+        punchedAt: { gte: since },
+      },
+      orderBy: { punchedAt: "desc" },
+      select: { punchType: true },
+    });
+
+    return apiSuccess({ checkedIn: latest?.punchType === "in" });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
 
 export async function POST(request: Request) {
   try {

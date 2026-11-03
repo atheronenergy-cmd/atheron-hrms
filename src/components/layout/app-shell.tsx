@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { LiveLocationSharer } from "@/modules/attendance/components/live-location-sharer";
 import { cn } from "@/lib/utils";
 
 import { Breadcrumb } from "./breadcrumb";
@@ -34,6 +35,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           © {new Date().getFullYear()} Atheron HRMS. All rights reserved.
         </footer>
       </div>
+      <LiveLocationSharer />
     </div>
   );
 }

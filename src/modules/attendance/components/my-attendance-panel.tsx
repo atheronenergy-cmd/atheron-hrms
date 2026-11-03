@@ -1,11 +1,12 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { publishLiveSharing } from "@/modules/attendance/live-location-events";
 
 type MyAttendancePanelProps = {
   employeeName: string;
@@ -13,8 +14,6 @@ type MyAttendancePanelProps = {
   checkedIn: boolean;
   statusLabel: string;
 };
-
-const SHARE_INTERVAL_MS = 60_000;
 
 async function readPosition() {
   if (!navigator.geolocation) throw new Error("GPS is not available on this device.");
@@ -27,50 +26,6 @@ async function readPosition() {
 export function MyAttendancePanel({ employeeName, employeeCode, checkedIn, statusLabel }: MyAttendancePanelProps) {
   const [sharing, setSharing] = useState(checkedIn);
   const [busy, setBusy] = useState(false);
-  const warned = useRef(false);
-
-  useEffect(() => {
-    if (!sharing) return;
-    let stopped = false;
-
-    async function ping() {
-      try {
-        const coords = await readPosition();
-        if (stopped) return;
-        const response = await fetch("/api/attendance/me", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "ping",
-            permissionState: "granted",
-            coordinates: {
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              accuracy: coords.accuracy,
-              altitude: coords.altitude ?? undefined,
-              timestamp: new Date().toISOString(),
-            },
-          }),
-        });
-        const result = await response.json();
-        if (!result.success && !warned.current) {
-          warned.current = true;
-          toast.error(result.message ?? "Location update failed.");
-        }
-      } catch {
-        if (!warned.current) {
-          warned.current = true;
-          toast.error("Unable to update your live location.");
-        }
-      }
-    }
-
-    const timer = window.setInterval(() => void ping(), SHARE_INTERVAL_MS);
-    return () => {
-      stopped = true;
-      window.clearInterval(timer);
-    };
-  }, [sharing]);
 
   async function mark(action: "in" | "out") {
     setBusy(true);
@@ -98,8 +53,9 @@ export function MyAttendancePanel({ employeeName, employeeCode, checkedIn, statu
         return;
       }
       toast.success(result.message);
-      setSharing(action === "in");
-      warned.current = false;
+      const isSharing = action === "in";
+      setSharing(isSharing);
+      publishLiveSharing(isSharing);
     } catch {
       toast.error("Allow location access, then try again.");
     } finally {
@@ -113,7 +69,7 @@ export function MyAttendancePanel({ employeeName, employeeCode, checkedIn, statu
         <CardTitle className="text-base">{employeeName}</CardTitle>
         <CardDescription>
           {employeeCode} · {statusLabel}
-          {sharing ? " · Live location is on while this page stays open." : ""}
+          {sharing ? " · Live location stays on until you check out. Keep this site open." : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">

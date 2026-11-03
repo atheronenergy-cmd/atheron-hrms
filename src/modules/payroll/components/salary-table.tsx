@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { ApproveSalaryButton } from "@/modules/payroll/components/payroll-editor";
 import type { EmployeeSalaryListItem, SalaryComponentListItem, SalaryRevisionListItem, SalaryStructureListItem } from "@/modules/payroll/domain/types";
 
 export function SalaryStructureTable({ items }: { items: SalaryStructureListItem[] }) {
@@ -55,7 +56,7 @@ export function SalaryComponentTable({ items }: { items: SalaryComponentListItem
   );
 }
 
-export function EmployeeSalaryTable({ items }: { items: EmployeeSalaryListItem[] }) {
+export function EmployeeSalaryTable({ items, canApprove = false }: { items: EmployeeSalaryListItem[]; canApprove?: boolean }) {
   if (!items.length) return <p className="text-sm text-muted-foreground">No employee salary assignments found.</p>;
   return (
     <div className="overflow-x-auto">
@@ -73,7 +74,12 @@ export function EmployeeSalaryTable({ items }: { items: EmployeeSalaryListItem[]
               <td className="py-2 pr-4">{item.baseSalary}</td>
               <td className="py-2 pr-4">{item.monthlyCtc}</td>
               <td className="py-2 pr-4">{item.effectiveFrom}</td>
-              <td className="py-2 pr-4"><Badge variant="outline">{item.approvalStatus}</Badge></td>
+              <td className="py-2 pr-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{item.approvalStatus}</Badge>
+                  {canApprove && item.approvalStatus !== "approved" ? <ApproveSalaryButton id={item.id} version={item.version} /> : null}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
